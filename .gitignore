@@ -1,0 +1,9 @@
+.idea/
+/results
+/images
+/data
+/Outputs
+/notebooks
+__pycache__/
+
+*.ipynb
