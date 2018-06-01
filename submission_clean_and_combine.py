@@ -13,7 +13,8 @@ def main():
     args = parse_args()
     frames = []
     dataset = WAD_CVPR2018(args.dataset_dir)
-    args.submission_path = args.result_dir + 'csv_files/'
+    args.submission_path = os.path.join(args.result_dir, 'csv_files')
+    print(args.submission_path)
     names = ['ImageId', 'LabelId', 'Confidence', 'PixelCount', 'EncodedPixels']
     for csv_file in os.listdir(args.submission_path):
         df = pd.read_csv(os.path.join(args.submission_path, csv_file), names=names)

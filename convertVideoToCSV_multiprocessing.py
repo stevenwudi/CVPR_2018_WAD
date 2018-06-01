@@ -14,7 +14,7 @@ import multiprocessing
 
 def convertCsvWorker(video_path, args):
     videoname = video_path.split('.')[0]
-    args.csv_file = args.submission_path + videoname + '.csv'
+    args.csv_file = os.path.join(args.submission_path, videoname + '.csv')
     print('videoname:' + videoname)
     groundTruthImgList = []
     predictionImgList = []
@@ -40,8 +40,8 @@ def convertCsvWorker(video_path, args):
 
 def main():
     args = parse_args()
-    args.pred_list_dir = args.result_dir + 'Images/List_Masks'
-    args.submission_path = args.result_dir + 'csv_files/'
+    args.pred_list_dir = os.path.join(args.result_dir, 'List_Masks')
+    args.submission_path = os.path.join(args.result_dir, 'csv_files')
     if not os.path.exists(args.submission_path):
         os.mkdir(args.submission_path)
 

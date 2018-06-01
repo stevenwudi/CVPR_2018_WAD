@@ -39,8 +39,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Demonstrate mask-rcnn results')
     #parser.add_argument('--cfg', default='/home/stevenwudi/PycharmProjects/mask-rcnn.pytorch/configs/e2e_mask_rcnn_R-50-C4_1x.yaml', dest='cfg_file',  help='optional config file')
     parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
-
-    parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May27-21-01-53_n606_step/ckpt/model_step10322.pth', help='path of checkpoint to load')
+    parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-11-15-53_n606_step/ckpt/model_step332.pth', help='path of checkpoint to load')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD',
                         help='directory to load images for demo')
     parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.5,
@@ -84,7 +83,7 @@ def main():
     maskRCNN.eval()
     imglist_all = misc_utils.get_imagelist_from_dir(dataset.test_image_dir)
 
-    output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images')
+    output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_'+str(cfg.TEST.SCALE))
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -102,7 +101,7 @@ def main():
 
     # A break point
     img_produced = os.listdir(output_vis_dir)
-    imglist = [x for x in imglist_all if x.split('/')[-1] not in img_produced]
+    #imglist = [x for x in imglist_all if x.split('/')[-1] not in img_produced]
     imglist = imglist_all
     num_images = len(imglist)
 
@@ -125,7 +124,7 @@ def main():
             dataset=dataset,
             box_alpha=0.3,
             show_class=True,
-            thresh=0.7,
+            thresh=0.5,
             kp_thresh=2
         )
 

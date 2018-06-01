@@ -1,15 +1,16 @@
 import copy
-import itertools
 import json
 import os
 import time
 from collections import defaultdict
+import itertools
 
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.collections import PatchCollection
-from matplotlib.patches import Polygon
 from pycocotools import mask as maskUtils
+
+
+def _isArrayLike(obj):
+    return hasattr(obj, '__iter__') and hasattr(obj, '__len__')
 
 
 class WAD_CVPR2018:
@@ -21,6 +22,7 @@ class WAD_CVPR2018:
         :return:
         """
         # load dataset
+        self.name = 'wad'
         self.dataset_dir = dataset_dir
         self.image_shape = (2710, 3384)  # Height, Width
         self.train_image_dir = os.path.join(dataset_dir, 'train_color')
@@ -71,8 +73,9 @@ class WAD_CVPR2018:
         self.id_map_to_cat = dict(zip(self.category_to_id_map.values(), self.category_to_id_map.keys()))
 
         self.eval_cat = {'car', 'motorcycle', 'bicycle', 'pedestrian', 'truck', 'bus', 'tricycle'}
+        self.classes = ['__background__'] + [c for c in self.eval_cat]
 
-        self.eval_class = [self.category_to_id_map[x] for x in self.eval_cat]
+        # self.eval_class = [self.category_to_id_map[x] for x in self.eval_cat]
         # Due to previous training, we need to set the order as follows
         self.eval_class = [39, 40, 34, 33, 38, 36, 35]
         self.json_category_id_to_contiguous_id = {
@@ -84,6 +87,7 @@ class WAD_CVPR2018:
             v: k
             for k, v in self.json_category_id_to_contiguous_id.items()
         }
+        self.dataset = dict()
 
     def getImageVideoIds(self):
         image_video_ids = []
@@ -99,3 +103,191 @@ class WAD_CVPR2018:
             image_video_ids.append(image_video)
 
         return image_video_ids
+
+    def loadGt(self, range_idx, type='boxes'):
+        """
+        Load result file and return a result api object.
+        :param   range     : range of image file
+        :param: type      : boxes, or segms
+        """
+        print('Loading and preparing results...')
+        res = WAD_CVPR2018(self.dataset_dir)
+        res.dataset['categories'] = copy.deepcopy(self.category_to_id_map)
+        res.dataset['images'] = []
+        anns = []
+        count = 1
+        tic = time.time()
+        if range is not None:
+            start, end = range_idx
+            for i in range(start, end):
+                entry = self.roidb[i]
+                res.dataset['images'].append({'id': entry['image']})
+                if type == 'boxes':
+                    for id in range(len(entry['boxes'])):
+                        ann = dict()
+                        ann['image_id'] = entry['image']
+                        ann['category_id'] = self.contiguous_category_id_to_json_id[entry['gt_classes'][id]]
+                        bb = entry['boxes'][id]
+                        x1, x2, y1, y2 = bb[0], bb[2], bb[1], bb[3]
+                        ann['segmentation'] = [[x1, y1, x1, y2, x2, y2, x2, y1]]
+                        ann['area'] = (bb[2] - bb[0]) * (bb[3] - bb[1])
+                        ann['id'] = count
+                        ann['iscrowd'] = 0
+                        count += 1
+                        anns.append(ann)
+
+                elif type == 'segms':
+                    for id in range(len(entry['segms'])):
+                        ann = dict()
+                        ann['image_id'] = entry['image']
+                        ann['category_id'] = self.contiguous_category_id_to_json_id[entry['gt_classes'][id]]
+                        # now only support compressed RLE format as segmentation results
+                        ann['area'] = maskUtils.area(entry['segms'][id])
+                        if not 'boxes' in ann:
+                            ann['boxes'] = maskUtils.toBbox(ann['segms'])
+                        ann['id'] = count
+                        count += 1
+                        ann['iscrowd'] = 0
+                        anns.append(ann)
+
+        print('DONE (t={:0.2f}s)'.format(time.time() - tic))
+
+        res.dataset['annotations'] = anns
+        res.createIndex()
+        return res
+
+    def loadRes(self, resFile):
+        """
+        Load result file and return a result api object.
+        :param   resFile (str)     : file name of result file
+        :return: res (obj)         : result api object
+        """
+        print('Loading and preparing results...')
+        res = WAD_CVPR2018(self.dataset_dir)
+
+        tic = time.time()
+        if type(resFile) == str:
+            anns = json.load(open(resFile))
+        elif type(resFile) == np.ndarray:
+            anns = self.loadNumpyAnnotations(resFile)
+        else:
+            anns = resFile
+        assert type(anns) == list, 'results in not an array of objects'
+
+        if 'bbox' in anns[0] and not anns[0]['bbox'] == []:
+            # res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
+            res.dataset['categories'] = copy.deepcopy(self.category_to_id_map)
+            for id, ann in enumerate(anns):
+                bb = ann['bbox']
+                x1, x2, y1, y2 = [bb[0], bb[0] + bb[2], bb[1], bb[1] + bb[3]]
+                if not 'segmentation' in ann:
+                    ann['segmentation'] = [[x1, y1, x1, y2, x2, y2, x2, y1]]
+                ann['area'] = bb[2] * bb[3]
+                ann['id'] = id + 1
+                ann['iscrowd'] = 0
+        elif 'segmentation' in anns[0]:
+            res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
+            for id, ann in enumerate(anns):
+                # now only support compressed RLE format as segmentation results
+                ann['area'] = maskUtils.area(ann['segmentation'])
+                if not 'bbox' in ann:
+                    ann['bbox'] = maskUtils.toBbox(ann['segmentation'])
+                ann['id'] = id + 1
+                ann['iscrowd'] = 0
+
+        print('DONE (t={:0.2f}s)'.format(time.time() - tic))
+
+        res.dataset['annotations'] = anns
+        res.createIndex()
+        return res
+
+    def createIndex(self):
+        # create index
+        print('creating index...')
+        anns, cats, imgs = {}, {}, {}
+        imgToAnns, catToImgs = defaultdict(list), defaultdict(list)
+        if 'annotations' in self.dataset:
+            for ann in self.dataset['annotations']:
+                imgToAnns[ann['image_id']].append(ann)
+                anns[ann['id']] = ann
+
+        if 'images' in self.dataset:
+            for img in self.dataset['images']:
+                imgs[img['id']] = img
+
+        # if 'categories' in self.dataset:
+        #     for cat in self.dataset['categories']:
+        #         cats[cat['id']] = cat
+
+        if 'annotations' in self.dataset and 'categories' in self.dataset:
+            for ann in self.dataset['annotations']:
+                catToImgs[ann['category_id']].append(ann['image_id'])
+
+        print('index created!')
+
+        # create class members
+        self.anns = anns
+        self.imgToAnns = imgToAnns
+        self.catToImgs = catToImgs
+        self.imgs = imgs
+        self.cats = self.id_map_to_cat
+
+    def loadAnns(self, ids=[]):
+        """
+        Load anns with the specified ids.
+        :param ids (int array)       : integer ids specifying anns
+        :return: anns (object array) : loaded ann objects
+        """
+        if _isArrayLike(ids):
+            return [self.anns[id] for id in ids]
+        elif type(ids) == int:
+            return [self.anns[ids]]
+
+    def getAnnIds(self, imgIds=[], catIds=[], areaRng=[], iscrowd=None):
+        """
+        Get ann ids that satisfy given filter conditions. default skips that filter
+        :param imgIds  (int array)     : get anns for given imgs
+               catIds  (int array)     : get anns for given cats
+               areaRng (float array)   : get anns for given area range (e.g. [0 inf])
+               iscrowd (boolean)       : get anns for given crowd label (False or True)
+        :return: ids (int array)       : integer array of ann ids
+        """
+        imgIds = imgIds if _isArrayLike(imgIds) else [imgIds]
+        catIds = catIds if _isArrayLike(catIds) else [catIds]
+
+        if len(imgIds) == len(catIds) == len(areaRng) == 0:
+            anns = self.dataset['annotations']
+        else:
+            if not len(imgIds) == 0:
+                lists = [self.imgToAnns[imgId] for imgId in imgIds if imgId in self.imgToAnns]
+                anns = list(itertools.chain.from_iterable(lists))
+            else:
+                anns = self.dataset['annotations']
+            anns = anns if len(catIds)  == 0 else [ann for ann in anns if ann['category_id'] in catIds]
+            anns = anns if len(areaRng) == 0 else [ann for ann in anns if ann['area'] > areaRng[0] and ann['area'] < areaRng[1]]
+        if not iscrowd == None:
+            ids = [ann['id'] for ann in anns if ann['iscrowd'] == iscrowd]
+        else:
+            ids = [ann['id'] for ann in anns]
+        return ids
+
+    def getImgIds(self, imgIds=[], catIds=[]):
+        '''
+        Get img ids that satisfy given filter conditions.
+        :param imgIds (int array) : get imgs for given ids
+        :param catIds (int array) : get imgs with all given cats
+        :return: ids (int array)  : integer array of img ids
+        '''
+        imgIds = imgIds if _isArrayLike(imgIds) else [imgIds]
+        catIds = catIds if _isArrayLike(catIds) else [catIds]
+
+        if len(imgIds) == len(catIds) == 0:
+            ids = self.imgs.keys()
+        else:
+            ids = set(imgIds)
+            for i, catId in enumerate(catIds):
+                if i == 0 and len(ids) == 0:
+                    ids = set(self.catToImgs[catId])
+                else:
+                    ids &= set(self.catToImgs[catId])
+        return list(ids)

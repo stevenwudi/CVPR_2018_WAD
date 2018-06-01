@@ -16,7 +16,7 @@ def parse_args():
     """Parse in command line arguments"""
     parser = argparse.ArgumentParser(description='Customized mapping')
     parser.add_argument('--mapping_dir', default="/media/samsumg_1tb/CVPR2018_WAD/list_test_mapping", help='md5 test image mapping dir')
-    parser.add_argument('--result_dir', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_R-101-FPN_2x/May27-21-01-53_n606_step/')
+    parser.add_argument('--result_dir', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_R-101-FPN_2x/May29/Images_2710')
     parser.add_argument('--test_video_list_dir', default='/media/samsumg_1tb/CVPR2018_WAD/list_test')
     parser.add_argument('--test_img_dir', default='/media/samsumg_1tb/CVPR2018_WAD/test')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD')
@@ -92,10 +92,8 @@ def convertImages_fast(predictionList, groundTruthList, args, mapping_dict):
 
 def main():
     args = parse_args()
-
-    args.pred_list_dir = args.result_dir + 'Images/List_Masks'
-    args.submission_path = args.result_dir + 'csv_files/'
-
+    args.pred_list_dir = os.path.join(args.result_dir, 'List_Masks')
+    args.submission_path = os.path.join(args.result_dir, 'csv_files')
     args.pred_image_list = os.listdir(args.pred_list_dir)
     test_video_list = os.listdir(args.test_video_list_dir)
     number_of_img_in_videos = []
@@ -105,7 +103,7 @@ def main():
 
         if not os.path.exists(args.submission_path):
             os.mkdir(args.submission_path)
-        args.csv_file = args.submission_path + videoname + '.csv'
+        args.csv_file = os.path.join(args.submission_path, videoname + '.csv')
         print('videoname:' + videoname)
         groundTruthImgList = []
         predictionImgList = []

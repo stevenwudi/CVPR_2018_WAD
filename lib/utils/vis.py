@@ -294,12 +294,9 @@ def vis_one_image_cvpr2018_wad(
         if score < thresh:
             continue
 
-        if hasattr(dataset, 'classes'):
-            print(dataset.classes[classes[i]], score)
-        else:
-            json_id = dataset.contiguous_category_id_to_json_id[classes[i]]
-            class_string = dataset.id_map_to_cat[json_id]
-            print(class_string, score)
+        json_id = dataset.contiguous_category_id_to_json_id[classes[i]]
+        class_string = dataset.id_map_to_cat[json_id]
+        print(class_string, score)
         # show box (off by default, box_alpha=0.0)
         ax.add_patch(plt.Rectangle((bbox[0], bbox[1]),
                                    bbox[2] - bbox[0],

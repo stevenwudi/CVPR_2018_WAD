@@ -22,15 +22,16 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import numpy as np
 import os
 import uuid
 
+import numpy as np
 from pycocotools.cocoeval import COCOeval
 
-from core.config import cfg
-from utils.io import save_object
 import utils.boxes as box_utils
+from core.config import cfg
+from datasets.wad_eval import WAD_eval
+from utils.io import save_object
 
 logger = logging.getLogger(__name__)
 
@@ -123,12 +124,8 @@ def _do_segmentation_eval(json_dataset, res_file, output_dir):
     return coco_eval
 
 
-def evaluate_boxes(
-    json_dataset, all_boxes, output_dir, use_salt=True, cleanup=False
-):
-    res_file = os.path.join(
-        output_dir, 'bbox_' + json_dataset.name + '_results'
-    )
+def evaluate_boxes(json_dataset, all_boxes, output_dir, use_salt=True, cleanup=False):
+    res_file = os.path.join(output_dir, 'bbox_' + json_dataset.name + '_results')
     if use_salt:
         res_file += '_{}'.format(str(uuid.uuid4()))
     res_file += '.json'
@@ -142,6 +139,68 @@ def evaluate_boxes(
     if cleanup:
         os.remove(res_file)
     return coco_eval
+
+
+def evaluate_boxes_wad(json_dataset, all_boxes, output_dir, use_salt=True, cleanup=False, args=None):
+    res_file = os.path.join(output_dir, 'bbox_' + json_dataset.name + '_results')
+    if use_salt:
+        res_file += '_{}'.format(str(uuid.uuid4()))
+    res_file += '.json'
+    _write_wad_bbox_results_file(json_dataset, all_boxes, res_file, args)
+    # Only do evaluation on non-test sets (annotations are undisclosed on test)
+    if json_dataset.name == "wad":
+        coco_eval = _wad_do_detection_eval(args, json_dataset, res_file, output_dir)
+
+    elif json_dataset.name.find('test') == -1:
+        coco_eval = _do_detection_eval(json_dataset, res_file, output_dir)
+    else:
+        coco_eval = None
+    # Optionally cleanup results json file
+    if cleanup:
+        os.remove(res_file)
+    return coco_eval
+
+
+def _write_wad_bbox_results_file(json_dataset, all_boxes, res_file, args):
+    # [{"image_id": 42,
+    #   "category_id": 18,
+    #   "bbox": [258.15,41.29,348.26,243.78],
+    #   "score": 0.236}, ...]
+    results = []
+    for cls_ind, cls in enumerate(json_dataset.classes):
+        if cls == '__background__':
+            continue
+        if cls_ind >= len(all_boxes):
+            break
+        cat_id = json_dataset.WAD_CVPR2018.category_to_id_map[cls]
+        results.extend(_wad_bbox_results_one_category(all_boxes[cls_ind], cat_id, args))
+    logger.info(
+        'Writing bbox results json to: {}'.format(os.path.abspath(res_file)))
+    with open(res_file, 'w') as fid:
+        json.dump(results, fid)
+
+
+def _wad_bbox_results_one_category(boxes, cat_id, args):
+    results = []
+    image_ids = args.image_ids
+    assert len(boxes) == len(image_ids)
+    for i, image_id in enumerate(image_ids):
+        dets = boxes[i]
+        if isinstance(dets, list) and len(dets) == 0:
+            continue
+        dets = dets.astype(np.float)
+        scores = dets[:, -1]
+        xywh_dets = box_utils.xyxy_to_xywh(dets[:, 0:4])
+        xs = xywh_dets[:, 0]
+        ys = xywh_dets[:, 1]
+        ws = xywh_dets[:, 2]
+        hs = xywh_dets[:, 3]
+        results.extend(
+            [{'image_id': image_id,
+              'category_id': cat_id,
+              'bbox': [xs[k], ys[k], ws[k], hs[k]],
+              'score': scores[k]} for k in range(dets.shape[0])])
+    return results
 
 
 def _write_coco_bbox_results_file(json_dataset, all_boxes, res_file):
@@ -191,6 +250,19 @@ def _coco_bbox_results_one_category(json_dataset, boxes, cat_id):
 def _do_detection_eval(json_dataset, res_file, output_dir):
     coco_dt = json_dataset.COCO.loadRes(str(res_file))
     coco_eval = COCOeval(json_dataset.COCO, coco_dt, 'bbox')
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+    _log_detection_eval_metrics(json_dataset, coco_eval)
+    eval_file = os.path.join(output_dir, 'detection_results.pkl')
+    save_object(coco_eval, eval_file)
+    logger.info('Wrote json eval results to: {}'.format(eval_file))
+    return coco_eval
+
+
+def _wad_do_detection_eval(args, json_dataset, res_file, output_dir):
+    coco_dt = json_dataset.WAD_CVPR2018.loadRes(str(res_file))
+    coco_gt = json_dataset.WAD_CVPR2018.loadGt(args.range, 'boxes')
+    coco_eval = WAD_eval(args, coco_gt, coco_dt, 'bbox')
     coco_eval.evaluate()
     coco_eval.accumulate()
     _log_detection_eval_metrics(json_dataset, coco_eval)
