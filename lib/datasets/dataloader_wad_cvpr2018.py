@@ -72,7 +72,7 @@ class WAD_CVPR2018:
 
         self.id_map_to_cat = dict(zip(self.category_to_id_map.values(), self.category_to_id_map.keys()))
 
-        self.eval_cat = {'car', 'motorcycle', 'bicycle', 'pedestrian', 'truck', 'bus', 'tricycle'}
+        self.eval_cat = {'bus', 'tricycle', 'motorcycle', 'car', 'truck', 'pedestrian', 'bicycle'}
         self.classes = ['__background__'] + [c for c in self.eval_cat]
 
         # self.eval_class = [self.category_to_id_map[x] for x in self.eval_cat]
@@ -129,7 +129,11 @@ class WAD_CVPR2018:
                         ann['category_id'] = self.contiguous_category_id_to_json_id[entry['gt_classes'][id]]
                         bb = entry['boxes'][id]
                         x1, x2, y1, y2 = bb[0], bb[2], bb[1], bb[3]
-                        ann['segmentation'] = [[x1, y1, x1, y2, x2, y2, x2, y1]]
+                        w = x2 - x1
+                        h = y2 - y1
+                        x_c = x1
+                        y_c = y1
+                        ann['bbox'] = [x_c, y_c, w, h]
                         ann['area'] = (bb[2] - bb[0]) * (bb[3] - bb[1])
                         ann['id'] = count
                         ann['iscrowd'] = 0

@@ -176,7 +176,7 @@ class WAD_eval:
         else:
             gt = [_ for cId in p.catIds for _ in self._gts[imgId, cId]]
             dt = [_ for cId in p.catIds for _ in self._dts[imgId, cId]]
-        if len(gt) == 0 and len(dt) == 0:
+        if len(gt) == 0 or len(dt) == 0:
             return []
         inds = np.argsort([-d['score'] for d in dt], kind='mergesort')
         dt = [dt[i] for i in inds]

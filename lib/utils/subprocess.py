@@ -136,7 +136,6 @@ def process_in_parallel_wad(args, total_range_size, binary):
     gpu_inds = list(gpu_inds)
     # Run the binary in cfg.NUM_GPUS subprocesses
     output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]))
-    tag = 'Log_'
     for i, gpu_ind in enumerate(gpu_inds):
         start = subinds[i][0]
         end = subinds[i][-1] + 1
@@ -163,14 +162,8 @@ def process_in_parallel_wad(args, total_range_size, binary):
     # Log output from inference processes and collate their results
     outputs = []
     for i, p, start, end, subprocess_stdout in processes:
-        log_subprocess_output_wad(i, p, output_dir, tag, start, end)
         if isinstance(subprocess_stdout, IOBase):
             subprocess_stdout.close()
-        range_file = os.path.join(
-            output_dir, '%s_range_%s_%s.pkl' % (tag, start, end)
-        )
-        range_data = pickle.load(open(range_file, 'rb'))
-        outputs.append(range_data)
     return outputs
 
 

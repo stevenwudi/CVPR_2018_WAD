@@ -27,9 +27,9 @@ def submission_sanity_check(sub, test_img_dir):
             print("Wrong label for: %s" % sub.loc[i]["ImageId"])
             continue
         # check your confidence is within the right range
-        conf = sub.loc[i]['Confidence']
+        conf = float(sub.loc[i]['Confidence'])
         if conf <= 0 or conf > 1:
-            print("wrong confidence for: %s with conf: %.3f" % (sub.loc[i]["ImageId"], sub.loc[i]["Confidence"]))
+            print("wrong confidence for: %s with conf: %s" % (sub.loc[i]["ImageId"], str(sub.loc[i]["Confidence"])))
             continue
         # Check your pixel count is within the right range
         pc = sub.loc[i]['PixelCount']

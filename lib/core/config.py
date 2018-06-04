@@ -927,7 +927,7 @@ __C.MATLAB = 'matlab'
 __C.VIS = False
 
 # Score threshold for visualization
-__C.VIS_TH = 0.9
+__C.VIS_TH = 0.5
 
 # Expected results should take the form of a list of expectations, each
 # specified by four elements (dataset, task, metric, expected value). For

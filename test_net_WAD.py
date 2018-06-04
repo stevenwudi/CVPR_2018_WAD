@@ -24,10 +24,10 @@ def parse_args():
 
     parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='path of checkpoint to load')
     parser.add_argument('--multi-gpu-testing', default=False, help='using multiple gpus for inference', action='store_true')
-    parser.add_argument('--vis', default=True, dest='vis', help='visualize detections', action='store_true')
+    parser.add_argument('--vis', default=False, dest='vis', help='visualize detections', action='store_true')
     parser.add_argument('--output_dir', help='output directory to save the testing results. If not provided defaults to [args.load_ckpt|args.load_detectron]/../test.')
     parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
-    parser.add_argument('--range', default=(0, 10), help='start (inclusive) and end (exclusive) indices', type=int, nargs=2)
+    parser.add_argument('--range', default=(0, 38653), help='start (inclusive) and end (exclusive) indices', type=int, nargs=2)
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD')
 
     return parser.parse_args()
@@ -70,3 +70,26 @@ if __name__ == '__main__':
     args.cuda = True
 
     run_inference_wad(args, ind_range=args.range, multi_gpu_testing=args.multi_gpu_testing)
+    """
+    INFO json_dataset_evaluator.py: 291: 41.2
+    INFO json_dataset_evaluator.py: 299: 50.4
+    INFO json_dataset_evaluator.py: 299: 29.9
+    INFO json_dataset_evaluator.py: 299: 23.5
+    INFO json_dataset_evaluator.py: 299: 31.6
+    INFO json_dataset_evaluator.py: 299: 53.7
+    INFO json_dataset_evaluator.py: 299: 59.2
+    INFO json_dataset_evaluator.py: 299: 40.0
+    INFO json_dataset_evaluator.py: 300: ~~~~ Summary metrics ~~~~
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.412
+     Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.663
+     Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.439
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.219
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.499
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.647
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.267
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.476
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.511
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.328
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.602
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.735
+    """

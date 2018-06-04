@@ -73,7 +73,7 @@ def parse_args():
     # Resume training: requires same iterations per epoch
     parser.add_argument('--resume', default=False, help='resume to training on a checkpoint', action='store_true')
     parser.add_argument('--no_save', help='do not save anything', action='store_true')
-    parser.add_argument('--load_ckpt', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-11-15-53_n606_step/ckpt/model_step665.pth', help='checkpoint path to load')
+    parser.add_argument('--load_ckpt', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='checkpoint path to load')
     parser.add_argument('--load_detectron', help='path to the detectron weight pickle file')
     parser.add_argument('--use_tfboard', default=True, help='Use tensorflow tensorboard to log training info', action='store_true')
 

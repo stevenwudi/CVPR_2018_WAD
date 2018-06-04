@@ -292,16 +292,13 @@ def test_net(
         image_ids.append(entry['image'])
     args.image_ids = image_ids
 
-
     # If we have already computed the boxes
     if os.path.exists(det_file):
         obj = load_object(det_file)
         all_boxes, all_segms, all_keyps = obj['all_boxes'], obj['all_segms'], obj['all_keyps']
 
     else:
-
         model = initialize_model_from_cfg(args, gpu_id=gpu_id)
-
         for i, entry in enumerate(roidb):
             if cfg.TEST.PRECOMPUTED_PROPOSALS:
                 # The roidb may contain ground-truth rois (for example, if the roidb

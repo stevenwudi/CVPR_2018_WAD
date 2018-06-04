@@ -24,12 +24,15 @@ def main():
             print("We have zeros elements in the file: %s" % csv_file)
 
     sub_csv = pd.concat(frames, axis=0)
+    sub_csv = sub_csv.dropna()
     confs = [0.5, 0.6, 0.7, 0.8, 0.9]
     for i in tqdm(range(len(confs))):
         conf = confs[i]
-        sub_csv_new = sub_csv.loc[sub_csv['Confidence'] > conf]
+        sub_csv = sub_csv.reset_index(drop=True)
+        sub_csv_new = submission_sanity_check(sub_csv, args.test_img_dir)
+        sub_csv_new.Confidence = sub_csv_new.Confidence.astype(float)
+        sub_csv_new = sub_csv_new.loc[sub_csv_new['Confidence'] > conf]
         sub_csv_new = sub_csv_new.reset_index(drop=True)
-        sub_csv_new = submission_sanity_check(sub_csv_new, args.test_img_dir)
         sub_csv_new = sub_csv_new.reindex(columns=['ImageId', 'LabelId', 'PixelCount', 'Confidence', 'EncodedPixels'])
         sub_csv_new.LabelId = sub_csv_new.LabelId.astype(int)
         sub_csv_new.PixelCount = sub_csv_new.PixelCount.astype(int)

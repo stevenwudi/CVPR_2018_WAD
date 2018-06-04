@@ -167,13 +167,9 @@ def _write_wad_bbox_results_file(json_dataset, all_boxes, res_file, args):
     #   "bbox": [258.15,41.29,348.26,243.78],
     #   "score": 0.236}, ...]
     results = []
-    for cls_ind, cls in enumerate(json_dataset.classes):
-        if cls == '__background__':
-            continue
-        if cls_ind >= len(all_boxes):
-            break
-        cat_id = json_dataset.WAD_CVPR2018.category_to_id_map[cls]
-        results.extend(_wad_bbox_results_one_category(all_boxes[cls_ind], cat_id, args))
+    for cls_ind, cls in enumerate(json_dataset.WAD_CVPR2018.eval_class):
+        cat_id = cls
+        results.extend(_wad_bbox_results_one_category(all_boxes[cls_ind+1], cat_id, args))
     logger.info(
         'Writing bbox results json to: {}'.format(os.path.abspath(res_file)))
     with open(res_file, 'w') as fid:

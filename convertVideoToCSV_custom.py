@@ -7,16 +7,14 @@ from tqdm import tqdm
 import argparse
 from six.moves import xrange
 from test_rle import rle_encoding
-
 from datasets.dataloader_wad_cvpr2018 import WAD_CVPR2018
-from pycocotools import mask as maskUtils
 
 
 def parse_args():
     """Parse in command line arguments"""
     parser = argparse.ArgumentParser(description='Customized mapping')
+    parser.add_argument('--result_dir', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/Images_0')
     parser.add_argument('--mapping_dir', default="/media/samsumg_1tb/CVPR2018_WAD/list_test_mapping", help='md5 test image mapping dir')
-    parser.add_argument('--result_dir', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_R-101-FPN_2x/May29/Images_2710')
     parser.add_argument('--test_video_list_dir', default='/media/samsumg_1tb/CVPR2018_WAD/list_test')
     parser.add_argument('--test_img_dir', default='/media/samsumg_1tb/CVPR2018_WAD/test')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD')
