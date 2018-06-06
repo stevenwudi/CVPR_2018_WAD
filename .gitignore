@@ -4,6 +4,7 @@
 /data
 /Outputs
 /notebooks
+/paper
 __pycache__/
 
 *.ipynb

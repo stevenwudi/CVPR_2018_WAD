@@ -56,7 +56,7 @@ def evaluate_all(dataset, all_boxes, all_segms, all_keyps, output_dir, args=None
     all_results = evaluate_boxes(dataset, all_boxes, output_dir, args)
     logger.info('Evaluating bounding boxes is done!')
     if cfg.MODEL.MASK_ON:
-        results = evaluate_masks(dataset, all_boxes, all_segms, output_dir)
+        results = evaluate_masks(dataset, all_boxes, all_segms, output_dir, args)
         all_results[dataset.name].update(results[dataset.name])
         logger.info('Evaluating segmentations is done!')
     if cfg.MODEL.KEYPOINTS_ON:
@@ -91,7 +91,7 @@ def evaluate_boxes(dataset, all_boxes, output_dir, args=None):
     return OrderedDict([(dataset.name, box_results)])
 
 
-def evaluate_masks(dataset, all_boxes, all_segms, output_dir):
+def evaluate_masks(dataset, all_boxes, all_segms, output_dir, args):
     """Evaluate instance segmentation."""
     logger.info('Evaluating segmentations')
     not_comp = not cfg.TEST.COMPETITION_MODE
@@ -105,12 +105,13 @@ def evaluate_masks(dataset, all_boxes, all_segms, output_dir):
             cleanup=not_comp
         )
         mask_results = _coco_eval_to_mask_results(coco_eval)
-    elif _use_cityscapes_evaluator(dataset):
-        cs_eval = cs_json_dataset_evaluator.evaluate_masks(
+    elif _use_wad_evaluator(dataset):
+        cs_eval = json_dataset_evaluator.evaluate_masks_wad(
             dataset,
             all_boxes,
             all_segms,
             output_dir,
+            args=args,
             use_salt=not_comp,
             cleanup=not_comp
         )
@@ -243,6 +244,10 @@ def _use_cityscapes_evaluator(dataset):
     """Check if the dataset uses the Cityscapes dataset evaluator."""
     return dataset.name.find('cityscapes_') > -1
 
+
+def _use_wad_evaluator(dataset):
+    """Check if the dataset uses the Cityscapes dataset evaluator."""
+    return dataset.name.find('wad') > -1
 
 def _use_voc_evaluator(dataset):
     """Check if the dataset uses the PASCAL VOC dataset evaluator."""

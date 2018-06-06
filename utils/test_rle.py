@@ -68,8 +68,7 @@ def im_detect_all(args, model, im, dataset, box_proposals=None, timers=None):
         raise NotImplementedError
         # scores, boxes, im_scale, blob_conv = im_detect_bbox_aug(model, im, box_proposals)
     else:
-        scores, boxes, im_scale, blob_conv = im_detect_bbox(
-            model, im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE, box_proposals)
+        scores, boxes, im_scale, blob_conv = im_detect_bbox(model, im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE, box_proposals)
     timers['im_detect_bbox'].toc()
 
     # score and boxes are from the whole image after score thresholding and nms
@@ -107,9 +106,7 @@ def im_detect_bbox(model, im, target_scale, target_max_size, boxes=None):
     if cfg.DEDUP_BOXES > 0 and not cfg.MODEL.FASTER_RCNN:
         v = np.array([1, 1e3, 1e6, 1e9, 1e12])
         hashes = np.round(inputs['rois'] * cfg.DEDUP_BOXES).dot(v)
-        _, index, inv_index = np.unique(
-            hashes, return_index=True, return_inverse=True
-        )
+        _, index, inv_index = np.unique(hashes, return_index=True, return_inverse=True)
         inputs['rois'] = inputs['rois'][index, :]
         boxes = boxes[index, :]
 
@@ -357,7 +354,7 @@ def segm_results(args, cls_boxes, masks, ref_boxes, im_h, im_w, dataset):
                 Confidence = cls_boxes[j][b, -1]
                 # save image to file
                 img_name = args.output_img_dir + '/' + args.current_im_name + "_" + str(LabelId) + '_' + str(class_instance_count) + '.png'
-                im = Image.fromarray(im_mask)
+                im = Image.fromarray(im_mask*255)
                 im.save(img_name)
                 prediction_row.append(" ".join((img_name, str(LabelId), str(Confidence))))
                 class_instance_count += 1

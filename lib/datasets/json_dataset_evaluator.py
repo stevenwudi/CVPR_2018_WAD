@@ -26,23 +26,22 @@ import os
 import uuid
 
 import numpy as np
-from pycocotools.cocoeval import COCOeval
 
 import utils.boxes as box_utils
 from core.config import cfg
 from datasets.wad_eval import WAD_eval
 from utils.io import save_object
-
+from pycocotools.cocoeval import COCOeval
 logger = logging.getLogger(__name__)
 
 
 def evaluate_masks(
-    json_dataset,
-    all_boxes,
-    all_segms,
-    output_dir,
-    use_salt=True,
-    cleanup=False
+        json_dataset,
+        all_boxes,
+        all_segms,
+        output_dir,
+        use_salt=True,
+        cleanup=False
 ):
     res_file = os.path.join(
         output_dir, 'segmentations_' + json_dataset.name + '_results'
@@ -63,27 +62,65 @@ def evaluate_masks(
     return coco_eval
 
 
-def _write_coco_segms_results_file(
-    json_dataset, all_boxes, all_segms, res_file
+def evaluate_masks_wad(
+        json_dataset,
+        all_boxes,
+        all_segms,
+        output_dir,
+        args,
+        use_salt=True,
+        cleanup=False,
 ):
+    res_file = os.path.join(output_dir, 'segmentations_' + json_dataset.name + '_results')
+    if use_salt:
+        res_file += '_{}'.format(str(uuid.uuid4()))
+    res_file += '.json'
+    _write_wad_segms_results_file(json_dataset, all_boxes, all_segms, res_file, args)
+    # Only do evaluation on non-test sets (annotations are undisclosed on test)
+    coco_eval = _do_wad_segmentation_eval(args, json_dataset, res_file, output_dir)
+
+    if cleanup:
+        os.remove(res_file)
+    return coco_eval
+
+
+def _write_wad_segms_results_file(json_dataset, all_boxes, all_segms, res_file, args):
     # [{"image_id": 42,
     #   "category_id": 18,
     #   "segmentation": [...],
     #   "score": 0.236}, ...]
     results = []
-    for cls_ind, cls in enumerate(json_dataset.classes):
-        if cls == '__background__':
-            continue
-        if cls_ind >= len(all_boxes):
-            break
-        cat_id = json_dataset.category_to_id_map[cls]
-        results.extend(_coco_segms_results_one_category(
-            json_dataset, all_boxes[cls_ind], all_segms[cls_ind], cat_id))
-    logger.info(
-        'Writing segmentation results json to: {}'.format(
-            os.path.abspath(res_file)))
+    for cls_ind, cls in enumerate(json_dataset.WAD_CVPR2018.eval_class):
+        cat_id = cls
+        results.extend(_wad_segms_results_one_category(all_boxes[cls_ind + 1], all_segms[cls_ind+1], cat_id, args))
+    logger.info('Writing bbox results json to: {}'.format(os.path.abspath(res_file)))
     with open(res_file, 'w') as fid:
         json.dump(results, fid)
+
+
+def _wad_segms_results_one_category(boxes, segms, cat_id, args):
+    results = []
+    image_ids = args.image_ids
+    assert len(boxes) == len(image_ids)
+    assert len(segms) == len(image_ids)
+    for i, image_id in enumerate(image_ids):
+        dets = boxes[i]
+        rles = segms[i]
+
+        if isinstance(dets, list) and len(dets) == 0:
+            continue
+
+        dets = dets.astype(np.float)
+        scores = dets[:, -1]
+
+        results.extend(
+            [{'image_id': image_id,
+              'category_id': cat_id,
+              'segmentation': rles[k],
+              'score': scores[k]}
+             for k in range(dets.shape[0])])
+
+    return results
 
 
 def _coco_segms_results_one_category(json_dataset, boxes, segms, cat_id):
@@ -107,7 +144,7 @@ def _coco_segms_results_one_category(json_dataset, boxes, segms, cat_id):
               'category_id': cat_id,
               'segmentation': rles[k],
               'score': scores[k]}
-              for k in range(dets.shape[0])])
+             for k in range(dets.shape[0])])
 
     return results
 
@@ -119,6 +156,45 @@ def _do_segmentation_eval(json_dataset, res_file, output_dir):
     coco_eval.accumulate()
     _log_detection_eval_metrics(json_dataset, coco_eval)
     eval_file = os.path.join(output_dir, 'segmentation_results.pkl')
+    save_object(coco_eval, eval_file)
+    logger.info('Wrote json eval results to: {}'.format(eval_file))
+    return coco_eval
+
+
+def _do_wad_segmentation_eval(args, json_dataset, res_file, output_dir):
+    coco_dt = json_dataset.WAD_CVPR2018.loadRes(str(res_file))
+    coco_gt = json_dataset.WAD_CVPR2018.loadGt(args.range, 'segms')
+
+    coco_eval = WAD_eval(args, coco_gt, coco_dt, 'segm')
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+    _log_detection_eval_metrics(json_dataset, coco_eval)
+    eval_file = os.path.join(output_dir, 'segmentation_results.pkl')
+    save_object(coco_eval, eval_file)
+    logger.info('Wrote json eval results to: {}'.format(eval_file))
+    return coco_eval
+
+
+def _wad_do_detection_eval(args, json_dataset, res_file, output_dir):
+    coco_dt = json_dataset.WAD_CVPR2018.loadRes(str(res_file))
+    coco_gt = json_dataset.WAD_CVPR2018.loadGt(args.range, 'boxes')
+    coco_eval = WAD_eval(args, coco_gt, coco_dt, 'bbox')
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+    _log_detection_eval_metrics(json_dataset, coco_eval)
+    eval_file = os.path.join(output_dir, 'detection_results.pkl')
+    save_object(coco_eval, eval_file)
+    logger.info('Wrote json eval results to: {}'.format(eval_file))
+    return coco_eval
+
+
+def _do_detection_eval(json_dataset, res_file, output_dir):
+    coco_dt = json_dataset.COCO.loadRes(str(res_file))
+    coco_eval = COCOeval(json_dataset.COCO, coco_dt, 'bbox')
+    coco_eval.evaluate()
+    coco_eval.accumulate()
+    _log_detection_eval_metrics(json_dataset, coco_eval)
+    eval_file = os.path.join(output_dir, 'detection_results.pkl')
     save_object(coco_eval, eval_file)
     logger.info('Wrote json eval results to: {}'.format(eval_file))
     return coco_eval
@@ -169,7 +245,7 @@ def _write_wad_bbox_results_file(json_dataset, all_boxes, res_file, args):
     results = []
     for cls_ind, cls in enumerate(json_dataset.WAD_CVPR2018.eval_class):
         cat_id = cls
-        results.extend(_wad_bbox_results_one_category(all_boxes[cls_ind+1], cat_id, args))
+        results.extend(_wad_bbox_results_one_category(all_boxes[cls_ind + 1], cat_id, args))
     logger.info(
         'Writing bbox results json to: {}'.format(os.path.abspath(res_file)))
     with open(res_file, 'w') as fid:
@@ -243,31 +319,6 @@ def _coco_bbox_results_one_category(json_dataset, boxes, cat_id):
     return results
 
 
-def _do_detection_eval(json_dataset, res_file, output_dir):
-    coco_dt = json_dataset.COCO.loadRes(str(res_file))
-    coco_eval = COCOeval(json_dataset.COCO, coco_dt, 'bbox')
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    _log_detection_eval_metrics(json_dataset, coco_eval)
-    eval_file = os.path.join(output_dir, 'detection_results.pkl')
-    save_object(coco_eval, eval_file)
-    logger.info('Wrote json eval results to: {}'.format(eval_file))
-    return coco_eval
-
-
-def _wad_do_detection_eval(args, json_dataset, res_file, output_dir):
-    coco_dt = json_dataset.WAD_CVPR2018.loadRes(str(res_file))
-    coco_gt = json_dataset.WAD_CVPR2018.loadGt(args.range, 'boxes')
-    coco_eval = WAD_eval(args, coco_gt, coco_dt, 'bbox')
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    _log_detection_eval_metrics(json_dataset, coco_eval)
-    eval_file = os.path.join(output_dir, 'detection_results.pkl')
-    save_object(coco_eval, eval_file)
-    logger.info('Wrote json eval results to: {}'.format(eval_file))
-    return coco_eval
-
-
 def _log_detection_eval_metrics(json_dataset, coco_eval):
     def _get_thr_ind(coco_eval, thr):
         ind = np.where((coco_eval.params.iouThrs > thr - 1e-5) &
@@ -294,16 +345,14 @@ def _log_detection_eval_metrics(json_dataset, coco_eval):
             continue
         # minus 1 because of __background__
         precision = coco_eval.eval['precision'][
-            ind_lo:(ind_hi + 1), :, cls_ind - 1, 0, 2]
+                    ind_lo:(ind_hi + 1), :, cls_ind - 1, 0, 2]
         ap = np.mean(precision[precision > -1])
         logger.info('{:.1f}'.format(100 * ap))
     logger.info('~~~~ Summary metrics ~~~~')
     coco_eval.summarize()
 
 
-def evaluate_box_proposals(
-    json_dataset, roidb, thresholds=None, area='all', limit=None
-):
+def evaluate_box_proposals(json_dataset, roidb, thresholds=None, area='all', limit=None):
     """Evaluate detection proposal recall metrics. This function is a much
     faster alternative to the official COCO API recall evaluation code. However,
     it produces slightly different results.
@@ -320,14 +369,14 @@ def evaluate_box_proposals(
         '256-512': 6,
         '512-inf': 7}
     area_ranges = [
-        [0**2, 1e5**2],    # all
-        [0**2, 32**2],     # small
-        [32**2, 96**2],    # medium
-        [96**2, 1e5**2],   # large
-        [96**2, 128**2],   # 96-128
-        [128**2, 256**2],  # 128-256
-        [256**2, 512**2],  # 256-512
-        [512**2, 1e5**2]]  # 512-inf
+        [0 ** 2, 1e5 ** 2],  # all
+        [0 ** 2, 32 ** 2],  # small
+        [32 ** 2, 96 ** 2],  # medium
+        [96 ** 2, 1e5 ** 2],  # large
+        [96 ** 2, 128 ** 2],  # 96-128
+        [128 ** 2, 256 ** 2],  # 128-256
+        [256 ** 2, 512 ** 2],  # 256-512
+        [512 ** 2, 1e5 ** 2]]  # 512-inf
     assert area in areas, 'Unknown area range: {}'.format(area)
     area_range = area_ranges[areas[area]]
     gt_overlaps = np.zeros(0)
@@ -384,115 +433,3 @@ def evaluate_box_proposals(
     return {'ar': ar, 'recalls': recalls, 'thresholds': thresholds,
             'gt_overlaps': gt_overlaps, 'num_pos': num_pos}
 
-
-def evaluate_keypoints(
-    json_dataset,
-    all_boxes,
-    all_keypoints,
-    output_dir,
-    use_salt=True,
-    cleanup=False
-):
-    res_file = os.path.join(
-        output_dir, 'keypoints_' + json_dataset.name + '_results'
-    )
-    if use_salt:
-        res_file += '_{}'.format(str(uuid.uuid4()))
-    res_file += '.json'
-    _write_coco_keypoint_results_file(
-        json_dataset, all_boxes, all_keypoints, res_file)
-    # Only do evaluation on non-test sets (annotations are undisclosed on test)
-    if json_dataset.name.find('test') == -1:
-        coco_eval = _do_keypoint_eval(json_dataset, res_file, output_dir)
-    else:
-        coco_eval = None
-    # Optionally cleanup results json file
-    if cleanup:
-        os.remove(res_file)
-    return coco_eval
-
-
-def _write_coco_keypoint_results_file(
-    json_dataset, all_boxes, all_keypoints, res_file
-):
-    results = []
-    for cls_ind, cls in enumerate(json_dataset.classes):
-        if cls == '__background__':
-            continue
-        if cls_ind >= len(all_keypoints):
-            break
-        logger.info(
-            'Collecting {} results ({:d}/{:d})'.format(
-                cls, cls_ind, len(all_keypoints) - 1))
-        cat_id = json_dataset.category_to_id_map[cls]
-        results.extend(_coco_kp_results_one_category(
-            json_dataset, all_boxes[cls_ind], all_keypoints[cls_ind], cat_id))
-    logger.info(
-        'Writing keypoint results json to: {}'.format(
-            os.path.abspath(res_file)))
-    with open(res_file, 'w') as fid:
-        json.dump(results, fid)
-
-
-def _coco_kp_results_one_category(json_dataset, boxes, kps, cat_id):
-    results = []
-    image_ids = json_dataset.COCO.getImgIds()
-    image_ids.sort()
-    assert len(kps) == len(image_ids)
-    assert len(boxes) == len(image_ids)
-    use_box_score = False
-    if cfg.KRCNN.KEYPOINT_CONFIDENCE == 'logit':
-        # This is ugly; see utils.keypoints.heatmap_to_keypoints for the magic
-        # indexes
-        score_index = 2
-    elif cfg.KRCNN.KEYPOINT_CONFIDENCE == 'prob':
-        score_index = 3
-    elif cfg.KRCNN.KEYPOINT_CONFIDENCE == 'bbox':
-        use_box_score = True
-    else:
-        raise ValueError(
-            'KRCNN.KEYPOINT_CONFIDENCE must be "logit", "prob", or "bbox"')
-    for i, image_id in enumerate(image_ids):
-        if len(boxes[i]) == 0:
-            continue
-        kps_dets = kps[i]
-        scores = boxes[i][:, -1].astype(np.float)
-        if len(kps_dets) == 0:
-            continue
-        for j in range(len(kps_dets)):
-            xy = []
-
-            kps_score = 0
-            for k in range(kps_dets[j].shape[1]):
-                xy.append(float(kps_dets[j][0, k]))
-                xy.append(float(kps_dets[j][1, k]))
-                xy.append(1)
-                if not use_box_score:
-                    kps_score += kps_dets[j][score_index, k]
-
-            if use_box_score:
-                kps_score = scores[j]
-            else:
-                kps_score /= kps_dets[j].shape[1]
-
-            results.extend([{'image_id': image_id,
-                             'category_id': cat_id,
-                             'keypoints': xy,
-                             'score': kps_score}])
-    return results
-
-
-def _do_keypoint_eval(json_dataset, res_file, output_dir):
-    ann_type = 'keypoints'
-    imgIds = json_dataset.COCO.getImgIds()
-    imgIds.sort()
-    coco_dt = json_dataset.COCO.loadRes(res_file)
-    coco_eval = COCOeval(json_dataset.COCO, coco_dt, ann_type)
-    coco_eval.params.imgIds = imgIds
-    coco_eval.evaluate()
-    coco_eval.accumulate()
-    eval_file = os.path.join(output_dir, 'keypoint_results.pkl')
-    save_object(coco_eval, eval_file)
-    logger.info('Wrote json eval results to: {}'.format(eval_file))
-    coco_eval.summarize()
-    return coco_eval

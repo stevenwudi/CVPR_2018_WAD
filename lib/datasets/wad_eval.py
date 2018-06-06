@@ -81,23 +81,11 @@ class WAD_eval:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.eval_class)
 
-        # if not cocoGt is None:
-        #     if args.range is not None:
-        #         start, end = args.range
-        #         for i in range(start, end):
-        #             self.params.imgIds.append(cocoGt.roidb[i]['image'])
-
     def _prepare(self):
         '''
         Prepare ._gts and ._dts for evaluation based on params
         :return: None
         '''
-
-        def _toMask(anns, coco):
-            # modify ann['segmentation'] by reference
-            for ann in anns:
-                rle = coco.annToRLE(ann)
-                ann['segmentation'] = rle
 
         p = self.params
         if p.useCats:
@@ -107,10 +95,6 @@ class WAD_eval:
             gts = self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds))
             dts = self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds))
 
-        # convert ground truth to mask if iouType == 'segm'
-        if p.iouType == 'segm':
-            _toMask(gts, self.cocoGt)
-            _toMask(dts, self.cocoDt)
         # set ignore flag
         for gt in gts:
             gt['ignore'] = gt['ignore'] if 'ignore' in gt else 0
@@ -184,7 +168,7 @@ class WAD_eval:
             dt = dt[0:p.maxDets[-1]]
 
         if p.iouType == 'segm':
-            g = [g['segmentation'] for g in gt]
+            g = [g['segms'] for g in gt]
             d = [d['segmentation'] for d in dt]
         elif p.iouType == 'bbox':
             g = [g['bbox'] for g in gt]
@@ -252,6 +236,7 @@ class WAD_eval:
         :return: dict (single image results)
         '''
         p = self.params
+        areaCountidx = self.params.areaRng.index(aRng)
         if p.useCats:
             gt = self._gts[imgId, catId]
             dt = self._dts[imgId, catId]
@@ -266,6 +251,15 @@ class WAD_eval:
                 g['_ignore'] = 1
             else:
                 g['_ignore'] = 0
+                # Di Wu also accumulate the area here:
+                self.params.areaCount[areaCountidx] += 1
+
+        for d in dt:
+            if d['area'] < aRng[0] or d['area'] > aRng[1]:
+                pass
+            else:
+                # Di Wu also accumulate the area here:
+                self.params.areaCountDetection[areaCountidx] += 1
 
         # sort dt highest score first, sort gt ignore last
         gtind = np.argsort([g['_ignore'] for g in gt], kind='mergesort')
@@ -440,9 +434,13 @@ class WAD_eval:
         Note this functin can *only* be applied on the default parameter setting
         '''
 
-        def _summarize(ap=1, iouThr=None, areaRng='all', maxDets=100):
+        def _summarize(ap=1, iouThr=None, areaRng='all                 ', maxDets=100, ):
             p = self.params
-            iStr = ' {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}'
+            if areaRng == 'all                 ':
+                iStr = ' {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f}'
+            else:
+                iStr = ' {:<18} {} @[ IoU={:<9} | area={:>6s} | maxDets={:>3d} ] = {:0.3f} | (numGT, numDt) = {:5d} {:5d}'
+
             titleStr = 'Average Precision' if ap == 1 else 'Average Recall'
             typeStr = '(AP)' if ap == 1 else '(AR)'
             iouStr = '{:0.2f}:{:0.2f}'.format(p.iouThrs[0], p.iouThrs[-1]) \
@@ -469,37 +467,49 @@ class WAD_eval:
                 mean_s = -1
             else:
                 mean_s = np.mean(s[s > -1])
-            print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
+            if areaRng == 'all                 ':
+                print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s))
+            else:
+                areaCountidx = self.params.areaRngLbl.index(areaRng)
+                gt = int(self.params.areaCount[areaCountidx])
+                dt = int(self.params.areaCountDetection[areaCountidx])
+                print(iStr.format(titleStr, typeStr, iouStr, areaRng, maxDets, mean_s, gt, dt))
             return mean_s
 
+        # def _summarizeDets():
+        #     stats = np.zeros((12,))
+        #     stats[0] = _summarize(1)
+        #     stats[1] = _summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
+        #     stats[2] = _summarize(1, iouThr=.75, maxDets=self.params.maxDets[2])
+        #     stats[3] = _summarize(1, areaRng='small', maxDets=self.params.maxDets[2])
+        #     stats[4] = _summarize(1, areaRng='medium', maxDets=self.params.maxDets[2])
+        #     stats[5] = _summarize(1, areaRng='large', maxDets=self.params.maxDets[2])
+        #     stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
+        #     stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
+        #     stats[8] = _summarize(0, maxDets=self.params.maxDets[2])
+        #     stats[9] = _summarize(0, areaRng='small', maxDets=self.params.maxDets[2])
+        #     stats[10] = _summarize(0, areaRng='medium', maxDets=self.params.maxDets[2])
+        #     stats[11] = _summarize(0, areaRng='large', maxDets=self.params.maxDets[2])
+        #     return stats
         def _summarizeDets():
-            stats = np.zeros((12,))
+            stats = np.zeros((16,))
             stats[0] = _summarize(1)
             stats[1] = _summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
             stats[2] = _summarize(1, iouThr=.75, maxDets=self.params.maxDets[2])
-            stats[3] = _summarize(1, areaRng='small', maxDets=self.params.maxDets[2])
-            stats[4] = _summarize(1, areaRng='medium', maxDets=self.params.maxDets[2])
-            stats[5] = _summarize(1, areaRng='large', maxDets=self.params.maxDets[2])
-            stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
-            stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
-            stats[8] = _summarize(0, maxDets=self.params.maxDets[2])
-            stats[9] = _summarize(0, areaRng='small', maxDets=self.params.maxDets[2])
-            stats[10] = _summarize(0, areaRng='medium', maxDets=self.params.maxDets[2])
-            stats[11] = _summarize(0, areaRng='large', maxDets=self.params.maxDets[2])
-            return stats
+            stats[3] = _summarize(1, areaRng='extra-small (0-14)  ', maxDets=self.params.maxDets[2])
+            stats[4] = _summarize(1, areaRng='medium(28-56)       ', maxDets=self.params.maxDets[2])
+            stats[5] = _summarize(1, areaRng='large(56-112)       ', maxDets=self.params.maxDets[2])
+            stats[6] = _summarize(1, areaRng='extra-large(112-512)', maxDets=self.params.maxDets[2])
+            stats[7] = _summarize(1, areaRng='uber-large(512 !!!!)', maxDets=self.params.maxDets[2])
 
-        def _summarizeKps():
-            stats = np.zeros((10,))
-            stats[0] = _summarize(1, maxDets=20)
-            stats[1] = _summarize(1, maxDets=20, iouThr=.5)
-            stats[2] = _summarize(1, maxDets=20, iouThr=.75)
-            stats[3] = _summarize(1, maxDets=20, areaRng='medium')
-            stats[4] = _summarize(1, maxDets=20, areaRng='large')
-            stats[5] = _summarize(0, maxDets=20)
-            stats[6] = _summarize(0, maxDets=20, iouThr=.5)
-            stats[7] = _summarize(0, maxDets=20, iouThr=.75)
-            stats[8] = _summarize(0, maxDets=20, areaRng='medium')
-            stats[9] = _summarize(0, maxDets=20, areaRng='large')
+            stats[8] = _summarize(0, maxDets=self.params.maxDets[0])
+            stats[9] = _summarize(0, maxDets=self.params.maxDets[1])
+            stats[10] = _summarize(0, maxDets=self.params.maxDets[2])
+            stats[11] = _summarize(0, areaRng='extra-small (0-14)  ', maxDets=self.params.maxDets[2])
+            stats[12] = _summarize(0, areaRng='medium(28-56)       ', maxDets=self.params.maxDets[2])
+            stats[13] = _summarize(0, areaRng='large(56-112)       ', maxDets=self.params.maxDets[2])
+            stats[14] = _summarize(0, areaRng='extra-large(112-512)', maxDets=self.params.maxDets[2])
+            stats[15] = _summarize(0, areaRng='uber-large(512 !!!!)', maxDets=self.params.maxDets[2])
             return stats
 
         if not self.eval:
@@ -507,8 +517,6 @@ class WAD_eval:
         iouType = self.params.iouType
         if iouType == 'segm' or iouType == 'bbox':
             summarize = _summarizeDets
-        elif iouType == 'keypoints':
-            summarize = _summarizeKps
         self.stats = summarize()
 
     def __str__(self):
@@ -527,19 +535,19 @@ class Params:
         self.iouThrs = np.linspace(.5, 0.95, np.round((0.95 - .5) / .05) + 1, endpoint=True)
         self.recThrs = np.linspace(.0, 1.00, np.round((1.00 - .0) / .01) + 1, endpoint=True)
         self.maxDets = [1, 10, 100]
-        self.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 32 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
-        self.areaRngLbl = ['all', 'small', 'medium', 'large']
-        self.useCats = 1
-
-    def setKpParams(self):
-        self.imgIds = []
-        self.catIds = []
-        # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(.5, 0.95, np.round((0.95 - .5) / .05) + 1, endpoint=True)
-        self.recThrs = np.linspace(.0, 1.00, np.round((1.00 - .0) / .01) + 1, endpoint=True)
-        self.maxDets = [20]
-        self.areaRng = [[0 ** 2, 1e5 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
-        self.areaRngLbl = ['all', 'medium', 'large']
+        # self.areaRng = [[0 ** 2, 1e5 ** 2], [14 ** 2, 32 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
+        # self.areaRngLbl = ['all', 'small', 'medium', 'large']
+        self.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 14 ** 2], [14 ** 2, 28 ** 2], [28 ** 2, 56 ** 2],
+                        [56 ** 2, 112 ** 2], [112 ** 2, 512 ** 2], [512 ** 2, 1e5 ** 2]]
+        self.areaCount = np.zeros(shape=len(self.areaRng))
+        self.areaCountDetection = np.zeros(shape=len(self.areaRng))
+        self.areaRngLbl = ['all                 ',
+                           'extra-small (0-14)  ',
+                           'small(14-28)        ',
+                           'medium(28-56)       ',
+                           'large(56-112)       ',
+                           'extra-large(112-512)',
+                           'uber-large(512 !!!!)']
         self.useCats = 1
 
     def __init__(self, iouType='segm'):

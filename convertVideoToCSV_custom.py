@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from __future__ import print_function
 import os
+import pandas as pd
 from PIL import Image
 import numpy as np
 from tqdm import tqdm
@@ -59,6 +60,33 @@ def convertImages(predictionList, groundTruthList, args, mapping_dict):
 
 
 def convertImages_fast(predictionList, groundTruthList, args, mapping_dict):
+    df = pd.DataFrame(columns=['ImageId', 'LabelId', 'Confidence', 'PixelCount', 'EncodedPixels'])
+    df_count = 0
+    for list_index, filename in enumerate(groundTruthList):
+        imageID = mapping_dict[filename]
+        if predictionList[list_index]:
+            predicitionFile = open(predictionList[list_index], "r")
+            predictionlines = predicitionFile.readlines()
+            for predictionline in predictionlines:
+                predictionInfo = predictionline.split(' ')
+                img = Image.open(predictionInfo[0])
+                InstanceMap = np.array(img)
+                # Historical code
+                LabelId = int(predictionInfo[1])
+                Confidence = float(predictionInfo[2].split('\n')[0])
+                idmap1d = np.reshape(InstanceMap > 0, (-1))
+                PixelCount = np.sum(idmap1d)
+                EncodedPixels = rle_encoding(InstanceMap)
+
+            df.loc[df_count] = [imageID, LabelId, Confidence, PixelCount, EncodedPixels]
+            df_count += 1
+
+    df.to_csv(args.csv_file, header=True, index=False)
+    print('Finish converting file: %s' % args.csv_file)
+    return
+
+
+def convertImages_fast_old(predictionList, groundTruthList, args, mapping_dict):
     csv = open(args.csv_file, 'a')
     dataset = WAD_CVPR2018('/media/samsumg_1tb/CVPR2018_WAD')
     for list_index, filename in enumerate(groundTruthList):

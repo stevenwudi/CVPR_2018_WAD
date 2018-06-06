@@ -12,7 +12,7 @@ import matplotlib
 from six.moves import xrange
 from tqdm import tqdm
 
-#os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1'
 import _init_paths  # pylint: disable=unused-import
 
 matplotlib.use('TkAgg')
@@ -27,6 +27,7 @@ from datasets.dataloader_wad_cvpr2018 import WAD_CVPR2018
 import utils.misc as misc_utils
 import utils.net as net_utils
 import utils.vis as vis_utils
+from infer_retrained_WAD import test_net_on_dataset
 from utils.timer import Timer
 import utils.env as envu
 import utils.subprocess as subprocess_utils
@@ -40,12 +41,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Demonstrate mask-rcnn results')
     parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
     parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='path of checkpoint to load')
-    parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD',
-                        help='directory to load images for demo')
-    parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.5,
-                        help='threshold for detection boundingbox')
-    parser.add_argument('--vis', default=True)
+    parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD', help='directory to load images for demo')
+    parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.5, help='threshold for detection boundingbox')
+    parser.add_argument('--vis', default=False)
     parser.add_argument('--range', default=None, help='start (inclusive) and end (exclusive) indices', type=int, nargs=2)
+    parser.add_argument('--nms_soft', default=True, help='Using Soft NMS')
+    parser.add_argument('--nms', default=0.3, help='default value for NMS')
     args = parser.parse_args()
 
     return args
@@ -66,6 +67,19 @@ def main():
         test_net_on_dataset_multigpu(args)
 
 
+def multi_gpu_test_net_on_dataset(args, num_images):
+    """Multi-gpu inference on a dataset."""
+    binary_dir = envu.get_runtime_dir()
+    binary_ext = envu.get_py_bin_ext()
+    binary = os.path.join(binary_dir, args.test_net_file + binary_ext)
+    assert os.path.exists(binary), 'Binary \'{}\' not found'.format(binary)
+
+    # Run inference in parallel in subprocesses
+    # Outputs will be a list of outputs from each subprocess, where the output
+    # of each subprocess is the dictionary saved by test_net().
+    subprocess_utils.process_in_parallel_wad(args, num_images, binary)
+
+
 def test_net_on_dataset_multigpu(args):
 
     dataset = WAD_CVPR2018(args.dataset_dir)
@@ -73,6 +87,10 @@ def test_net_on_dataset_multigpu(args):
     print('load cfg from file: {}'.format(args.cfg_file))
     cfg_from_file(args.cfg_file)
     cfg.RESNETS.IMAGENET_PRETRAINED = False  # Don't need to load imagenet pretrained weights
+    if args.nms_soft:
+        cfg.TEST.SOFT_NMS.ENABLED = True
+    else:
+        cfg.TEST.NMS = args.nms
     assert_and_infer_cfg()
     maskRCNN = Generalized_RCNN()
     maskRCNN.cuda()
@@ -87,7 +105,13 @@ def test_net_on_dataset_multigpu(args):
     maskRCNN.eval()
     imglist = misc_utils.get_imagelist_from_dir(dataset.test_image_dir)
 
-    output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE))
+    if args.nms_soft:
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE)+'_SOFT_NMS')
+    elif args.nms:
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE)+'__%.2f'%args.nms)
+    else:
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE))
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -130,19 +154,6 @@ def test_net_on_dataset_multigpu(args):
         thefile = open(os.path.join(output_list_dir, im_name + '.txt'), 'w')
         for item in prediction_row:
             thefile.write("%s\n" % item)
-
-
-def multi_gpu_test_net_on_dataset(args, num_images):
-    """Multi-gpu inference on a dataset."""
-    binary_dir = envu.get_runtime_dir()
-    binary_ext = envu.get_py_bin_ext()
-    binary = os.path.join(binary_dir, args.test_net_file + binary_ext)
-    assert os.path.exists(binary), 'Binary \'{}\' not found'.format(binary)
-
-    # Run inference in parallel in subprocesses
-    # Outputs will be a list of outputs from each subprocess, where the output
-    # of each subprocess is the dictionary saved by test_net().
-    subprocess_utils.process_in_parallel_wad(args, num_images, binary)
 
 
 if __name__ == '__main__':

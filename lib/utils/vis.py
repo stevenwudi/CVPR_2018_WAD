@@ -259,8 +259,7 @@ def vis_one_image_cvpr2018_wad(
         os.makedirs(output_dir)
 
     if isinstance(boxes, list):
-        boxes, segms, keypoints, classes = convert_from_cls_format(
-            boxes, segms, keypoints)
+        boxes, segms, keypoints, classes = convert_from_cls_format(boxes, segms, keypoints)
 
     if boxes is None or boxes.shape[0] == 0 or max(boxes[:, 4]) < thresh:
         return

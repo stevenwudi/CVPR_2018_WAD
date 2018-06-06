@@ -12,10 +12,10 @@ import matplotlib
 from six.moves import xrange
 from tqdm import tqdm
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 import _init_paths  # pylint: disable=unused-import
 
-matplotlib.use('TkAgg')
+#matplotlib.use('TkAgg')
 import cv2
 import torch
 import nn as mynn
@@ -37,13 +37,13 @@ cv2.ocl.setUseOpenCL(False)
 def parse_args():
     """Parse in command line arguments"""
     parser = argparse.ArgumentParser(description='Demonstrate mask-rcnn results')
-    #parser.add_argument('--cfg', default='/home/stevenwudi/PycharmProjects/mask-rcnn.pytorch/configs/e2e_mask_rcnn_R-50-C4_1x.yaml', dest='cfg_file',  help='optional config file')
     parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
-    parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-11-15-53_n606_step/ckpt/model_step332.pth', help='path of checkpoint to load')
-    parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD',
-                        help='directory to load images for demo')
-    parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.5,
-                        help='threshold for detection boundingbox')
+    parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='path of checkpoint to load')
+    parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD',help='directory to load images for demo')
+    parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.5, help='threshold for detection boundingbox')
+    parser.add_argument('--nms_soft', default=True, help='Using Soft NMS')
+    parser.add_argument('--nms', default=0.3, help='default value for NMS')
+    parser.add_argument('--vis', default=False)
     args = parser.parse_args()
 
     return args
@@ -58,12 +58,19 @@ def main():
     args = parse_args()
     print('Called with args:')
     print(args)
+    test_net_on_dataset(args)
 
+
+def test_net_on_dataset(args):
     dataset = WAD_CVPR2018(args.dataset_dir)
     cfg.MODEL.NUM_CLASSES = len(dataset.eval_class) + 1  # with a background class
 
     print('load cfg from file: {}'.format(args.cfg_file))
     cfg_from_file(args.cfg_file)
+    if args.nms_soft:
+        cfg.TEST.SOFT_NMS.ENABLED = True
+    else:
+        cfg.TEST.NMS = args.nms
 
     cfg.RESNETS.IMAGENET_PRETRAINED = False  # Don't need to load imagenet pretrained weights
     assert_and_infer_cfg()
@@ -83,7 +90,13 @@ def main():
     maskRCNN.eval()
     imglist_all = misc_utils.get_imagelist_from_dir(dataset.test_image_dir)
 
-    output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_'+str(cfg.TEST.SCALE))
+    if args.nms_soft:
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE)+'_SOFT_NMS')
+    elif args.nms:
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE)+'%.2f'%args.nms)
+    else:
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE))
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -114,19 +127,20 @@ def main():
         cls_boxes, cls_segms, prediction_row = im_detect_all(args, maskRCNN, im, dataset, timers=timers)
         im_name, _ = os.path.splitext(os.path.basename(imglist[i]))
         print(im_name)
-        vis_utils.vis_one_image_cvpr2018_wad(
-            im[:, :, ::-1],  # BGR -> RGB for visualization
-            im_name,
-            output_vis_dir,
-            cls_boxes,
-            cls_segms,
-            None,
-            dataset=dataset,
-            box_alpha=0.3,
-            show_class=True,
-            thresh=0.5,
-            kp_thresh=2
-        )
+        if args.vis:
+            vis_utils.vis_one_image_cvpr2018_wad(
+                im[:, :, ::-1],  # BGR -> RGB for visualization
+                im_name,
+                output_vis_dir,
+                cls_boxes,
+                cls_segms,
+                None,
+                dataset=dataset,
+                box_alpha=0.3,
+                show_class=True,
+                thresh=0.5,
+                kp_thresh=2
+            )
 
         thefile = open(os.path.join(output_list_dir, im_name + '.txt'), 'w')
         for item in prediction_row:

@@ -143,6 +143,7 @@ class WAD_CVPR2018:
                 elif type == 'segms':
                     for id in range(len(entry['segms'])):
                         ann = dict()
+                        ann['segms'] = entry['segms'][id]
                         ann['image_id'] = entry['image']
                         ann['category_id'] = self.contiguous_category_id_to_json_id[entry['gt_classes'][id]]
                         # now only support compressed RLE format as segmentation results
@@ -177,10 +178,8 @@ class WAD_CVPR2018:
         else:
             anns = resFile
         assert type(anns) == list, 'results in not an array of objects'
-
+        res.dataset['categories'] = copy.deepcopy(self.category_to_id_map)
         if 'bbox' in anns[0] and not anns[0]['bbox'] == []:
-            # res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
-            res.dataset['categories'] = copy.deepcopy(self.category_to_id_map)
             for id, ann in enumerate(anns):
                 bb = ann['bbox']
                 x1, x2, y1, y2 = [bb[0], bb[0] + bb[2], bb[1], bb[1] + bb[3]]
@@ -190,7 +189,6 @@ class WAD_CVPR2018:
                 ann['id'] = id + 1
                 ann['iscrowd'] = 0
         elif 'segmentation' in anns[0]:
-            res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
             for id, ann in enumerate(anns):
                 # now only support compressed RLE format as segmentation results
                 ann['area'] = maskUtils.area(ann['segmentation'])

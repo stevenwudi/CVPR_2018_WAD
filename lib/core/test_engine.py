@@ -356,7 +356,7 @@ def test_net(
                     cls_boxes_i,
                     segms=cls_segms_i,
                     keypoints=cls_keyps_i,
-                    thresh=cfg.VIS_TH,
+                    thresh=0.5,
                     box_alpha=0.8,
                     dataset=dataset.WAD_CVPR2018,
                     show_class=True
@@ -373,7 +373,7 @@ def test_net(
         logger.info('Wrote detections to: {}'.format(os.path.abspath(det_file)))
 
     results = task_evaluation.evaluate_all(dataset, all_boxes, all_segms, all_keyps, output_dir, args)
-    return all_boxes, all_segms, all_keyps
+    return results
 
 
 def initialize_model_from_cfg(args, gpu_id=0):
