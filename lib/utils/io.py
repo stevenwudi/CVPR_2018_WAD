@@ -38,17 +38,14 @@ _DETECTRON_S3_BASE_URL = 'https://s3-us-west-2.amazonaws.com/detectron'
 
 def save_object(obj, file_name):
     """Save a Python object by pickling it."""
-
     file_name = os.path.abspath(file_name)
     with open(file_name, 'wb') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-
 
 def load_object(file_name):
     """Load a Python object by pickling it."""
     obj = pickle.load(open(file_name, "rb"))
     return obj
-
 
 def cache_url(url_or_file, cache_dir):
     """Download the file specified by the URL to the cache_dir and return the

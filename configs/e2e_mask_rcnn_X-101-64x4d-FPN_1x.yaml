@@ -1,28 +1,27 @@
 MODEL:
   TYPE: generalized_rcnn
-  CONV_BODY: FPN.fpn_ResNet152_conv5_body
-  NUM_CLASSES: 81
+  CONV_BODY: FPN.fpn_ResNet101_conv5_body
   FASTER_RCNN: True
   MASK_ON: True
 NUM_GPUS: 8
 SOLVER:
   WEIGHT_DECAY: 0.0001
   LR_POLICY: steps_with_decay
-  # 1.44x schedule (note TRAIN.IMS_PER_BATCH: 1)
+  # 1x schedule (note TRAIN.IMS_PER_BATCH: 1)
   BASE_LR: 0.01
   GAMMA: 0.1
-  MAX_ITER: 260000
-  STEPS: [0, 200000, 240000]
+  MAX_ITER: 180000
+  STEPS: [0, 120000, 160000]
 FPN:
   FPN_ON: True
   MULTILEVEL_ROIS: True
   MULTILEVEL_RPN: True
 RESNETS:
-  IMAGENET_PRETRAINED_WEIGHTS: '/home/stevenwudi/PycharmProjects/mask-rcnn.pytorch/data/pretrained_model/X-152-32x8d-IN5k.pkl'
+  IMAGENET_PRETRAINED_WEIGHTS: '/home/stevenwudi/PycharmProjects/mask-rcnn.pytorch/data/pretrained_model/X-101-64x4d.pkl'
   STRIDE_1X1: False  # default True for MSRA; False for C2 or Torch models
   TRANS_FUNC: bottleneck_transformation
-  NUM_GROUPS: 32
-  WIDTH_PER_GROUP: 8
+  NUM_GROUPS: 64
+  WIDTH_PER_GROUP: 4
 FAST_RCNN:
   ROI_BOX_HEAD: fast_rcnn_heads.roi_2mlp_head
   ROI_XFORM_METHOD: RoIAlign
@@ -37,8 +36,7 @@ MRCNN:
   DILATION: 1  # default 2
   CONV_INIT: MSRAFill  # default GaussianFill
 TRAIN:
-  #SCALES: (640, 672, 704, 736, 768, 800)  # Scale jitter
-  SCALES: (800, 1000, 1200)
+  SCALES: (1200, 1600, 2000, 2400)
   MAX_SIZE: 2400
   IMS_PER_BATCH: 1
   BATCH_SIZE_PER_IM: 512
@@ -73,3 +71,4 @@ TEST:
     SCALE_SIZE_DEP: False
     ASPECT_RATIOS: ()
     ASPECT_RATIO_H_FLIP: False
+

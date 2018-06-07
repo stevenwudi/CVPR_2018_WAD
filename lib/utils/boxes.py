@@ -325,7 +325,7 @@ def nms(dets, thresh):
 
 
 def soft_nms(
-    dets, sigma=0.5, overlap_thresh=0.3, score_thresh=0.001, method='linear'
+    dets, sigma=0.5, overlap_thresh=0.3, score_thresh=0.001, method='gaussian'
 ):
     """Apply the soft NMS algorithm from https://arxiv.org/abs/1704.04503."""
     if dets.shape[0] == 0:

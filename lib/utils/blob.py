@@ -117,16 +117,13 @@ def prep_im_for_blob(im, pixel_means, target_sizes, max_size):
 
     ims = []
     im_scales = []
-    if target_sizes[0] == 0:
-        return [im], [1]
-    else:
-        for target_size in target_sizes:
-            im_scale = get_target_scale(im_size_min, im_size_max, target_size, max_size)
-            im_resized = cv2.resize(im, None, None, fx=im_scale, fy=im_scale,
-                                    interpolation=cv2.INTER_LINEAR)
-            ims.append(im_resized)
-            im_scales.append(im_scale)
-        return ims, im_scales
+    for target_size in target_sizes:
+        im_scale = get_target_scale(im_size_min, im_size_max, target_size, max_size)
+        im_resized = cv2.resize(im, None, None, fx=im_scale, fy=im_scale,
+                                interpolation=cv2.INTER_LINEAR)
+        ims.append(im_resized)
+        im_scales.append(im_scale)
+    return ims, im_scales
 
 
 def get_im_blob_sizes(im_shape, target_sizes, max_size):

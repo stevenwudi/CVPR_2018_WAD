@@ -10,8 +10,13 @@ import copy
 from ast import literal_eval
 
 import numpy as np
+from packaging import version
+import torch
+import torch.nn as nn
+from torch.nn import init
 import yaml
 
+import nn as mynn
 from utils.collections import AttrDict
 
 __C = AttrDict()
@@ -80,7 +85,7 @@ __C.TRAIN.PROPOSAL_FILES = ()
 # Snapshot (model checkpoint) period
 # Divide by NUM_GPUS to determine actual period (e.g., 20000/8 => 2500 iters)
 # to allow for linear training schedule scaling
-__C.TRAIN.SNAPSHOT_ITERS = 1000
+__C.TRAIN.SNAPSHOT_ITERS = 20000
 
 # Normalize the targets (subtract empirical mean, divide by empirical stddev)
 __C.TRAIN.BBOX_NORMALIZE_TARGETS = True
@@ -574,6 +579,8 @@ __C.SOLVER.MOMENTUM = 0.9
 
 # L2 regularization hyperparameter
 __C.SOLVER.WEIGHT_DECAY = 0.0005
+# L2 regularization hyperparameter for GroupNorm's parameters
+__C.SOLVER.WEIGHT_DECAY_GN = 0.0
 
 # Whether to double the learning rate for bias
 __C.SOLVER.BIAS_DOUBLE_LR = True
@@ -615,6 +622,11 @@ __C.FAST_RCNN.ROI_BOX_HEAD = ''
 
 # Hidden layer dimension when using an MLP for the RoI box head
 __C.FAST_RCNN.MLP_HEAD_DIM = 1024
+
+# Hidden Conv layer dimension when using Convs for the RoI box head
+__C.FAST_RCNN.CONV_HEAD_DIM = 256
+# Number of stacked Conv layers in the RoI box head
+__C.FAST_RCNN.NUM_STACKED_CONVS = 4
 
 # RoI transformation function (e.g., RoIPool or RoIAlign)
 # (RoIPoolF is the same as RoIPool; ignore the trailing 'F')
@@ -711,6 +723,8 @@ __C.FPN.RPN_ANCHOR_START_SIZE = 32
 __C.FPN.RPN_COLLECT_SCALE = 1
 # Use extra FPN levels, as done in the RetinaNet paper
 __C.FPN.EXTRA_CONV_LEVELS = False
+# Use GroupNorm in the FPN-specific layers (lateral, etc.)
+__C.FPN.USE_GN = False
 
 
 # ---------------------------------------------------------------------------- #
@@ -868,6 +882,10 @@ __C.RESNETS.STRIDE_1X1 = True
 
 # Residual transformation function
 __C.RESNETS.TRANS_FUNC = 'bottleneck_transformation'
+# ResNet's stem function (conv1 and pool1)
+__C.RESNETS.STEM_FUNC = 'basic_bn_stem'
+# ResNet's shortcut function
+__C.RESNETS.SHORTCUT_FUNC = 'basic_bn_shortcut'
 
 # Apply dilation in stage "res5"
 __C.RESNETS.RES5_DILATION = 1
@@ -881,6 +899,21 @@ __C.RESNETS.FREEZE_AT = 2
 # If start with '/', then it is treated as a absolute path.
 # Otherwise, treat as a relative path to __C.ROOT_DIR
 __C.RESNETS.IMAGENET_PRETRAINED_WEIGHTS = ''
+
+# Use GroupNorm instead of BatchNorm
+__C.RESNETS.USE_GN = False
+
+
+# ---------------------------------------------------------------------------- #
+# GroupNorm options
+# ---------------------------------------------------------------------------- #
+__C.GROUP_NORM = AttrDict()
+# Number of dimensions per group in GroupNorm (-1 if using NUM_GROUPS)
+__C.GROUP_NORM.DIM_PER_GP = -1
+# Number of groups in GroupNorm (-1 if using DIM_PER_GP)
+__C.GROUP_NORM.NUM_GROUPS = 32
+# GroupNorm's small constant in the denominator
+__C.GROUP_NORM.EPSILON = 1e-5
 
 
 # ---------------------------------------------------------------------------- #
@@ -927,7 +960,7 @@ __C.MATLAB = 'matlab'
 __C.VIS = False
 
 # Score threshold for visualization
-__C.VIS_TH = 0.5
+__C.VIS_TH = 0.9
 
 # Expected results should take the form of a list of expectations, each
 # specified by four elements (dataset, task, metric, expected value). For
@@ -956,6 +989,8 @@ __C.CUDA = False
 
 __C.DEBUG = False
 
+# [Infered value]
+__C.PYTORCH_VERSION_LESS_THAN_040 = False
 
 # ---------------------------------------------------------------------------- #
 # mask heads or keypoint heads that share res5 stage weights and
@@ -985,6 +1020,13 @@ def assert_and_infer_cfg(make_immutable=True):
             "Path to the weight file must not be empty to load imagenet pertrained resnets."
     if set([__C.MRCNN.ROI_MASK_HEAD, __C.KRCNN.ROI_KEYPOINTS_HEAD]) & _SHARE_RES5_HEADS:
         __C.MODEL.SHARE_RES5 = True
+    if version.parse(torch.__version__) < version.parse('0.4.0'):
+        __C.PYTORCH_VERSION_LESS_THAN_040 = True
+        # create alias for PyTorch version less than 0.4.0
+        init.uniform_ = init.uniform
+        init.normal_ = init.normal
+        init.constant_ = init.constant
+        nn.GroupNorm = mynn.GroupNorm
     if make_immutable:
         cfg.immutable(True)
 

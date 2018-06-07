@@ -1,3 +1,4 @@
+from functools import wraps
 import importlib
 import logging
 
@@ -40,6 +41,31 @@ def get_func(func_name):
     except Exception:
         logger.error('Failed to find function: %s', func_name)
         raise
+
+
+def compare_state_dict(sa, sb):
+    if sa.keys() != sb.keys():
+        return False
+    for k, va in sa.items():
+        if not torch.equal(va, sb[k]):
+            return False
+    return True
+
+
+def check_inference(net_func):
+    @wraps(net_func)
+    def wrapper(self, *args, **kwargs):
+        if not self.training:
+            if cfg.PYTORCH_VERSION_LESS_THAN_040:
+                return net_func(self, *args, **kwargs)
+            else:
+                with torch.no_grad():
+                    return net_func(self, *args, **kwargs)
+        else:
+            raise ValueError('You should call this function only on inference.'
+                              'Set the network in inference mode by net.eval().')
+
+    return wrapper
 
 
 class Generalized_RCNN(nn.Module):
@@ -102,15 +128,22 @@ class Generalized_RCNN(nn.Module):
             resnet_utils.load_pretrained_imagenet_weights(self)
             # Check if shared weights are equaled
             if cfg.MODEL.MASK_ON and getattr(self.Mask_Head, 'SHARE_RES5', False):
-                assert self.Mask_Head.res5.state_dict() == self.Box_Head.res5.state_dict()
+                assert compare_state_dict(self.Mask_Head.res5.state_dict(), self.Box_Head.res5.state_dict())
             if cfg.MODEL.KEYPOINTS_ON and getattr(self.Keypoint_Head, 'SHARE_RES5', False):
-                assert self.Keypoint_Head.res5.state_dict() == self.Box_Head.res5.state_dict()
+                assert compare_state_dict(self.Keypoint_Head.res5.state_dict(), self.Box_Head.res5.state_dict())
 
         if cfg.TRAIN.FREEZE_CONV_BODY:
             for p in self.Conv_Body.parameters():
                 p.requires_grad = False
 
     def forward(self, data, im_info, roidb=None, **rpn_kwargs):
+        if cfg.PYTORCH_VERSION_LESS_THAN_040:
+            return self._forward(data, im_info, roidb, **rpn_kwargs)
+        else:
+            with torch.set_grad_enabled(self.training):
+                return self._forward(data, im_info, roidb, **rpn_kwargs)
+
+    def _forward(self, data, im_info, roidb=None, **rpn_kwargs):
         im_data = data
         if self.training:
             roidb = list(map(lambda x: blob_utils.deserialize(x)[0], roidb))
@@ -201,6 +234,13 @@ class Generalized_RCNN(nn.Module):
                         kps_pred, rpn_ret['keypoint_locations_int32'], rpn_ret['keypoint_weights'],
                         rpn_ret['keypoint_loss_normalizer'])
                 return_dict['losses']['loss_kps'] = loss_keypoints
+
+            # pytorch0.4 bug on gathering scalar(0-dim) tensors
+            for k, v in return_dict['losses'].items():
+                return_dict['losses'][k] = v.unsqueeze(0)
+            for k, v in return_dict['metrics'].items():
+                return_dict['metrics'][k] = v.unsqueeze(0)
+
         else:
             # Testing
             return_dict['rois'] = rpn_ret['rois']
@@ -283,26 +323,29 @@ class Generalized_RCNN(nn.Module):
 
         return xform_out
 
+    @check_inference
+    def convbody_net(self, data):
+        """For inference. Run Conv Body only"""
+        blob_conv = self.Conv_Body(data)
+        if cfg.FPN.FPN_ON:
+            # Retain only the blobs that will be used for RoI heads. `blob_conv` may include
+            # extra blobs that are used for RPN proposals, but not for RoI heads.
+            blob_conv = blob_conv[-self.num_roi_levels:]
+        return blob_conv
+
+    @check_inference
     def mask_net(self, blob_conv, rpn_blob):
         """For inference"""
-        if not self.training:
-            mask_feat = self.Mask_Head(blob_conv, rpn_blob)
-            mask_pred = self.Mask_Outs(mask_feat)
-            return mask_pred
-        else:
-            raise ValueError('You should call this function only on inference.'
-                             'Set the network in inference mode by net.eval().')
+        mask_feat = self.Mask_Head(blob_conv, rpn_blob)
+        mask_pred = self.Mask_Outs(mask_feat)
+        return mask_pred
 
-
+    @check_inference
     def keypoint_net(self, blob_conv, rpn_blob):
         """For inference"""
-        if not self.training:
-            kps_feat = self.Keypoint_Head(blob_conv, rpn_blob)
-            kps_pred = self.Keypoint_Outs(kps_feat)
-            return kps_pred
-        else:
-            raise ValueError('You should call this function only on inference.'
-                             'Set the network in inference mode by net.eval().')
+        kps_feat = self.Keypoint_Head(blob_conv, rpn_blob)
+        kps_pred = self.Keypoint_Outs(kps_feat)
+        return kps_pred
 
     @property
     def detectron_weight_mapping(self):
