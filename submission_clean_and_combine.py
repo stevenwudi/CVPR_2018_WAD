@@ -13,7 +13,12 @@ def main():
     args = parse_args()
     frames = []
     dataset = WAD_CVPR2018(args.dataset_dir)
-    args.submission_path = os.path.join(args.result_dir, 'csv_files')
+    args.del_overlap = False
+    if args.del_overlap:
+        args.submission_path = os.path.join(args.result_dir, 'csv_files_del_overlap')
+    else:
+        args.submission_path = os.path.join(args.result_dir, 'csv_files')
+
     print(args.submission_path)
     names = ['ImageId', 'LabelId', 'Confidence', 'PixelCount', 'EncodedPixels']
     for csv_file in os.listdir(args.submission_path):
@@ -25,7 +30,7 @@ def main():
 
     sub_csv = pd.concat(frames, axis=0)
     sub_csv = sub_csv.dropna()
-    confs = [0.5, 0.6, 0.7, 0.8, 0.9]
+    confs = [0.1, 0.2, 0.3, 0.4, 0.5]
     for i in tqdm(range(len(confs))):
         conf = confs[i]
         sub_csv = sub_csv.reset_index(drop=True)
@@ -45,8 +50,12 @@ def main():
         count_ratio = np.array([x/np.sum(count) for x in count])
         for i, l in enumerate(np.unique(sub_csv_new.LabelId)):
             print("%s --> %d --> %0.3f" %(dataset.id_map_to_cat[l], count[i], count_ratio[i]))
+        print('Total instance number for conf %.1f is %d' % (conf, len(sub_csv_new)))
 
-        sub_csv_new.to_csv(os.path.join(args.result_dir, 'combined_%.2f.csv' % conf), header=True, index=False)
+        if args.del_overlap:
+            sub_csv_new.to_csv(os.path.join(args.result_dir, 'combined_%.2f_del_overlap.csv' % conf), header=True, index=False)
+        else:
+            sub_csv_new.to_csv(os.path.join(args.result_dir, 'combined_%.2f.csv' % conf), header=True, index=False)
 
 
 if __name__ == '__main__':

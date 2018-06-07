@@ -1,6 +1,6 @@
 """Perform inference on one or more datasets."""
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 import argparse
 import cv2
 import pprint
@@ -23,13 +23,11 @@ def parse_args():
 
     parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='path of checkpoint to load')
     parser.add_argument('--multi-gpu-testing', default=False, help='using multiple gpus for inference', action='store_true')
-    parser.add_argument('--vis', default=True, dest='vis', help='visualize detections', action='store_true')
+    parser.add_argument('--vis', default=False, dest='vis', help='visualize detections', action='store_true')
     parser.add_argument('--output_dir', help='output directory to save the testing results. If not provided defaults to [args.load_ckpt|args.load_detectron]/../test.')
     parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
-    #parser.add_argument('--range', default=(0, 38653), help='start (inclusive) and end (exclusive) indices', type=int, nargs=2)
-    parser.add_argument('--range', default=(0, 10), help='start (inclusive) and end (exclusive) indices', type=int, nargs=2)
+    parser.add_argument('--range', default=(0, 3), help='(0, 38653) --> start (inclusive) and end (exclusive) indices', type=int, nargs=2)
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD')
-
     parser.add_argument('--nms_soft', default=True, help='Using Soft NMS')
     parser.add_argument('--nms', default=0.3, help='default value for NMS')
 
@@ -62,6 +60,10 @@ if __name__ == '__main__':
 
     cfg.TEST.DATASETS = ('wad',)
     cfg.MODEL.NUM_CLASSES = 8
+    if args.nms_soft:
+        cfg.TEST.SOFT_NMS.ENABLED = True
+    else:
+        cfg.TEST.NMS = args.nms
     assert_and_infer_cfg()
 
     logger.info('Testing with config:')

@@ -8,7 +8,7 @@ from six.moves import xrange
 import argparse
 import _init_paths  # pylint: disable=unused-import
 
-from convertVideoToCSV_custom import getPrediction, convertImages_fast, parse_args
+from convertVideoToCSV_custom import getPrediction, convertImages_fast, parse_args, convertImages_with_postprocessing
 import multiprocessing
 
 
@@ -34,8 +34,10 @@ def convertCsvWorker(video_path, args):
     for gt in groundTruthImgList:
         predictionImgList.append(getPrediction(gt, args, mapping_dict))
 
-    # This will convert the png images to RLE format
-    convertImages_fast(predictionImgList, groundTruthImgList, args, mapping_dict)
+    if args.del_overlap:
+        convertImages_with_postprocessing(predictionImgList, groundTruthImgList, args, mapping_dict)
+    else:
+        convertImages_fast(predictionImgList, groundTruthImgList, args, mapping_dict)
 
 
 def main():

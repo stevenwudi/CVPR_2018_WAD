@@ -308,8 +308,7 @@ def vis_one_image_cvpr2018_wad(
                     class_string + ' {:0.2f}'.format(score).lstrip('0'),
                     fontsize=10,
                     family='serif',
-                    bbox=dict(
-                        facecolor='g', alpha=0.4, pad=0, edgecolor='none'),
+                    bbox=dict(facecolor='g', alpha=0.4, pad=0, edgecolor='none'),
                     color='white')
 
         # show mask
@@ -335,55 +334,6 @@ def vis_one_image_cvpr2018_wad(
                     edgecolor='w', linewidth=1.2,
                     alpha=0.5)
                 ax.add_patch(polygon)
-
-        # show keypoints
-        if keypoints is not None and len(keypoints) > i:
-            kps = keypoints[i]
-            plt.autoscale(False)
-            for l in range(len(kp_lines)):
-                i1 = kp_lines[l][0]
-                i2 = kp_lines[l][1]
-                if kps[2, i1] > kp_thresh and kps[2, i2] > kp_thresh:
-                    x = [kps[0, i1], kps[0, i2]]
-                    y = [kps[1, i1], kps[1, i2]]
-                    line = ax.plot(x, y)
-                    plt.setp(line, color=colors[l], linewidth=1.0, alpha=0.7)
-                if kps[2, i1] > kp_thresh:
-                    ax.plot(
-                        kps[0, i1], kps[1, i1], '.', color=colors[l],
-                        markersize=3.0, alpha=0.7)
-                if kps[2, i2] > kp_thresh:
-                    ax.plot(
-                        kps[0, i2], kps[1, i2], '.', color=colors[l],
-                        markersize=3.0, alpha=0.7)
-
-            # add mid shoulder / mid hip for better visualization
-            mid_shoulder = (
-                               kps[:2, dataset_keypoints.index('right_shoulder')] +
-                               kps[:2, dataset_keypoints.index('left_shoulder')]) / 2.0
-            sc_mid_shoulder = np.minimum(
-                kps[2, dataset_keypoints.index('right_shoulder')],
-                kps[2, dataset_keypoints.index('left_shoulder')])
-            mid_hip = (
-                          kps[:2, dataset_keypoints.index('right_hip')] +
-                          kps[:2, dataset_keypoints.index('left_hip')]) / 2.0
-            sc_mid_hip = np.minimum(
-                kps[2, dataset_keypoints.index('right_hip')],
-                kps[2, dataset_keypoints.index('left_hip')])
-            if (sc_mid_shoulder > kp_thresh and
-                        kps[2, dataset_keypoints.index('nose')] > kp_thresh):
-                x = [mid_shoulder[0], kps[0, dataset_keypoints.index('nose')]]
-                y = [mid_shoulder[1], kps[1, dataset_keypoints.index('nose')]]
-                line = ax.plot(x, y)
-                plt.setp(
-                    line, color=colors[len(kp_lines)], linewidth=1.0, alpha=0.7)
-            if sc_mid_shoulder > kp_thresh and sc_mid_hip > kp_thresh:
-                x = [mid_shoulder[0], mid_hip[0]]
-                y = [mid_shoulder[1], mid_hip[1]]
-                line = ax.plot(x, y)
-                plt.setp(
-                    line, color=colors[len(kp_lines) + 1], linewidth=1.0,
-                    alpha=0.7)
 
         output_name = os.path.basename(im_name) + '.' + ext
         fig.savefig(os.path.join(output_dir, '{}'.format(output_name)), dpi=dpi)

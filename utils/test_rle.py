@@ -263,7 +263,7 @@ def box_results_with_nms_and_limit(scores, boxes):  # NOTE: support single-batch
                 sigma=cfg.TEST.SOFT_NMS.SIGMA,
                 overlap_thresh=cfg.TEST.NMS,
                 score_thresh=0.0001,
-                method=cfg.TEST.SOFT_NMS.METHOD
+                method='gaussian'
             )
         else:
             keep = box_utils.nms(dets_j, cfg.TEST.NMS)

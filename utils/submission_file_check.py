@@ -14,7 +14,8 @@ def submission_sanity_check(sub, test_img_dir):
         # check whether ImageId is correct
         img_n = sub.loc[i]['ImageId']
         if img_n not in img_names:
-            print('Wrong im id : %s' % sub.loc[i]["ImageId"])
+            if not img_n == "ImageId":
+                print('Wrong im id : %s' % sub.loc[i]["ImageId"])
             continue
 
         # check LabelIs is within the corpus

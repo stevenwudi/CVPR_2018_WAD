@@ -278,7 +278,10 @@ def test_net(
     dataset = JsonDataset(dataset_name, args.dataset_dir)
     timers = defaultdict(Timer)
     if ind_range is not None:
-        det_name = 'detection_range_%s_%s.pkl' % tuple(ind_range)
+        if cfg.TEST.SOFT_NMS.ENABLED:
+            det_name = 'detection_range_%s_%s_soft_nms.pkl' % tuple(ind_range)
+        else:
+            det_name = 'detection_range_(%d_%d)_nms_%.1f.pkl' % (ind_range[0], ind_range[1], cfg.TEST.NMS)
     else:
         det_name = 'detections.pkl'
     det_file = os.path.join(output_dir, det_name)

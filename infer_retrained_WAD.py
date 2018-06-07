@@ -12,7 +12,7 @@ import matplotlib
 from six.moves import xrange
 from tqdm import tqdm
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import _init_paths  # pylint: disable=unused-import
 
 #matplotlib.use('TkAgg')
@@ -39,11 +39,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Demonstrate mask-rcnn results')
     parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
     parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='path of checkpoint to load')
-    parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD',help='directory to load images for demo')
+    parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD', help='directory to load images for demo')
     parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.5, help='threshold for detection boundingbox')
     parser.add_argument('--nms_soft', default=True, help='Using Soft NMS')
-    parser.add_argument('--nms', default=0.3, help='default value for NMS')
-    parser.add_argument('--vis', default=False)
+    parser.add_argument('--nms', default=0.5, help='default value for NMS')
+    parser.add_argument('--vis', default=True)
     args = parser.parse_args()
 
     return args
@@ -84,8 +84,7 @@ def test_net_on_dataset(args):
         checkpoint = torch.load(load_name, map_location=lambda storage, loc: storage)
         net_utils.load_ckpt(maskRCNN, checkpoint['model'])
 
-    maskRCNN = mynn.DataParallel(maskRCNN, cpu_keywords=['im_info', 'roidb'], minibatch=True,
-                                 device_ids=[0])  # only support single GPU
+    maskRCNN = mynn.DataParallel(maskRCNN, cpu_keywords=['im_info', 'roidb'], minibatch=True, device_ids=[0])  # only support single GPU
 
     maskRCNN.eval()
     imglist_all = misc_utils.get_imagelist_from_dir(dataset.test_image_dir)
@@ -93,9 +92,12 @@ def test_net_on_dataset(args):
     if args.nms_soft:
         output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE)+'_SOFT_NMS')
     elif args.nms:
-        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE)+'%.2f'%args.nms)
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE)+'_NMS_%.2f'%args.nms)
     else:
         output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE))
+
+    #if args.cls_boxes_confident_threshold < 0.5:
+    output_dir += '_cls_boxes_confident_threshold_%.1f' % args.cls_boxes_confident_threshold
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -113,7 +115,7 @@ def test_net_on_dataset(args):
         os.makedirs(output_list_dir)
 
     # A break point
-    img_produced = os.listdir(output_vis_dir)
+    # img_produced = os.listdir(output_vis_dir)
     #imglist = [x for x in imglist_all if x.split('/')[-1] not in img_produced]
     imglist = imglist_all
     num_images = len(imglist)
@@ -137,7 +139,7 @@ def test_net_on_dataset(args):
                 None,
                 dataset=dataset,
                 box_alpha=0.3,
-                show_class=True,
+                show_class=False,
                 thresh=0.5,
                 kp_thresh=2
             )
