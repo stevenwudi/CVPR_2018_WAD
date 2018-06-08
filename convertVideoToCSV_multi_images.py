@@ -7,7 +7,7 @@ import os
 from six.moves import xrange
 import _init_paths  # pylint: disable=unused-import
 
-from convertVideoToCSV_custom import getPrediction, parse_args, convertImages_with_postprocessing_image
+from convertVideoToCSV_custom import getPrediction, parse_args, convertImages_with_postprocessing_image, convertImages_with_image
 import multiprocessing
 
 
@@ -54,8 +54,8 @@ def main():
                     p = multiprocessing.Process(target=convertImages_with_postprocessing_image,
                                                 args=(filename, list_index, predictionImgList, args, mapping_dict))
                 else:
-                    raise NotImplementedError
-
+                    p = multiprocessing.Process(target=convertImages_with_image,
+                                                args=(filename, list_index, predictionImgList, args, mapping_dict))
                 jobs.append(p)
                 p.start()
 

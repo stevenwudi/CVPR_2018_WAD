@@ -203,6 +203,32 @@ def convertImages_with_postprocessing_image(filename, list_index,  predictionLis
     print('Finish converting file: %s with %d deleting overlaps' % (args.csv_file_image, del_count))
 
 
+def convertImages_with_image(filename, list_index,  predictionList, args, mapping_dict):
+
+    df = pd.DataFrame(columns=['ImageId', 'LabelId', 'Confidence', 'PixelCount', 'EncodedPixels'])
+    df_count = 0
+    imageID = mapping_dict[filename]
+    if os.path.exists(predictionList[list_index]):
+        predicitionFile = open(predictionList[list_index], "r")
+        predictionlines = predicitionFile.readlines()
+        for predictionline in predictionlines:
+            LabelId = int(predictionInfo[1])
+            Confidence = float(predictionInfo[2].split('\n')[0])
+
+            predictionInfo = predictionline.split(' ')
+            img = Image.open(predictionInfo[0])
+            InstanceMap = np.array(img)
+            idmap1d = np.reshape(InstanceMap > 0, (-1))
+            PixelCount = np.sum(idmap1d)
+            EncodedPixels = rle_encoding(InstanceMap)
+
+            df.loc[df_count] = [imageID, LabelId, Confidence, PixelCount, EncodedPixels]
+            df_count += 1
+
+    df.to_csv(args.csv_file_image, header=True, index=False)
+    print('Finish converting file: %s.' % (args.csv_file_image))
+
+
 def convertImages_fast_old(predictionList, groundTruthList, args, mapping_dict):
     csv = open(args.csv_file, 'a')
     dataset = WAD_CVPR2018('/media/samsumg_1tb/CVPR2018_WAD')

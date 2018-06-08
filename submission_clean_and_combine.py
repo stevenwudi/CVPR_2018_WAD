@@ -30,7 +30,7 @@ def main():
     sub_csv = pd.concat(frames, axis=0)
     sub_csv = sub_csv.dropna()
     #confs = [0.1, 0.2, 0.3, 0.4, 0.5]
-    confs = [0.5]
+    confs = [0.1]
     for i in tqdm(range(len(confs))):
         conf = confs[i]
         sub_csv = sub_csv.reset_index(drop=True)
