@@ -41,9 +41,9 @@ def parse_args():
     parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='path of checkpoint to load')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD', help='directory to load images for demo')
     parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.5, help='threshold for detection boundingbox')
-    parser.add_argument('--nms_soft', default=True, help='Using Soft NMS')
+    parser.add_argument('--nms_soft', default=False, help='Using Soft NMS')
     parser.add_argument('--nms', default=0.5, help='default value for NMS')
-    parser.add_argument('--vis', default=True)
+    parser.add_argument('--vis', default=False)
     args = parser.parse_args()
 
     return args
@@ -96,6 +96,8 @@ def test_net_on_dataset(args):
     else:
         output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE))
 
+    if cfg.TEST.BBOX_AUG.ENABLED:
+        output_dir += '_TEST_AUG'
     #if args.cls_boxes_confident_threshold < 0.5:
     output_dir += '_cls_boxes_confident_threshold_%.1f' % args.cls_boxes_confident_threshold
 

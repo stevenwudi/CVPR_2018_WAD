@@ -13,7 +13,6 @@ def main():
     args = parse_args()
     frames = []
     dataset = WAD_CVPR2018(args.dataset_dir)
-    args.del_overlap = False
     if args.del_overlap:
         args.submission_path = os.path.join(args.result_dir, 'csv_files_del_overlap')
     else:
@@ -30,7 +29,8 @@ def main():
 
     sub_csv = pd.concat(frames, axis=0)
     sub_csv = sub_csv.dropna()
-    confs = [0.1, 0.2, 0.3, 0.4, 0.5]
+    #confs = [0.1, 0.2, 0.3, 0.4, 0.5]
+    confs = [0.5]
     for i in tqdm(range(len(confs))):
         conf = confs[i]
         sub_csv = sub_csv.reset_index(drop=True)

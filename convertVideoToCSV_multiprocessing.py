@@ -43,7 +43,10 @@ def convertCsvWorker(video_path, args):
 def main():
     args = parse_args()
     args.pred_list_dir = os.path.join(args.result_dir, 'List_Masks')
-    args.submission_path = os.path.join(args.result_dir, 'csv_files')
+    if args.del_overlap:
+        args.submission_path = os.path.join(args.result_dir, 'csv_files_del_overlap')
+    else:
+        args.submission_path = os.path.join(args.result_dir, 'csv_files')
     if not os.path.exists(args.submission_path):
         os.mkdir(args.submission_path)
 

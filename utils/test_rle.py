@@ -44,6 +44,7 @@ import utils.boxes as box_utils
 import utils.fpn as fpn_utils
 from core.config import cfg
 from utils.timer import Timer
+from core.test import im_detect_bbox_aug, im_detect_mask_aug
 
 from PIL import Image
 
@@ -65,8 +66,7 @@ def im_detect_all(args, model, im, dataset, box_proposals=None, timers=None):
 
     timers['im_detect_bbox'].tic()
     if cfg.TEST.BBOX_AUG.ENABLED:
-        raise NotImplementedError
-        # scores, boxes, im_scale, blob_conv = im_detect_bbox_aug(model, im, box_proposals)
+        scores, boxes, im_scale, blob_conv = im_detect_bbox_aug(model, im, box_proposals)
     else:
         scores, boxes, im_scale, blob_conv = im_detect_bbox(model, im, cfg.TEST.SCALE, cfg.TEST.MAX_SIZE, box_proposals)
     timers['im_detect_bbox'].toc()
@@ -82,8 +82,7 @@ def im_detect_all(args, model, im, dataset, box_proposals=None, timers=None):
     if cfg.MODEL.MASK_ON and boxes.shape[0] > 0:
         timers['im_detect_mask'].tic()
         if cfg.TEST.MASK_AUG.ENABLED:
-            raise NotImplementedError
-            # masks = im_detect_mask_aug(model, im, boxes, blob_conv)
+            masks = im_detect_mask_aug(model, im, boxes, im_scale, blob_conv)
         else:
             masks = im_detect_mask(model, im_scale, boxes, blob_conv)
         timers['im_detect_mask'].toc()

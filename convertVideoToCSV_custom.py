@@ -22,6 +22,7 @@ def parse_args():
     parser.add_argument('--test_img_dir', default='/media/samsumg_1tb/CVPR2018_WAD/test')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD')
     parser.add_argument('--del_overlap', default=0.1, help='None or a float number')
+    parser.add_argument('--num_threads', default=15, help='multiprocessing thread')
 
     args = parser.parse_args()
     return args
@@ -94,6 +95,7 @@ def convertImages_with_postprocessing(predictionList, groundTruthList, args, map
     df = pd.DataFrame(columns=['ImageId', 'LabelId', 'Confidence', 'PixelCount', 'EncodedPixels'])
     df_count = 0
     del_count = 0
+
     for list_index, filename in enumerate(groundTruthList):
         imageID = mapping_dict[filename]
         if predictionList[list_index]:
@@ -114,6 +116,8 @@ def convertImages_with_postprocessing(predictionList, groundTruthList, args, map
             conf_order = np.argsort(-np.array(conf_list))
             image_mask_all = np.zeros(shape=(2710, 3384))
             for conf_idx in conf_order:
+                # skip flag indicates whether we will skip this instance
+                skip_flag = False
                 img = Image.open(img_mask_list[conf_idx])
                 InstanceMap = np.array(img)
                 image_mask_all += InstanceMap > 0
@@ -126,8 +130,65 @@ def convertImages_with_postprocessing(predictionList, groundTruthList, args, map
                         if iou[0][0] > args.del_overlap:
                             image_mask_all -= InstanceMap
                             del_count += 1
+                            skip_flag = True
                             continue
+                if not skip_flag:
+                    img_mask_valid.append(InstanceMap)
+                    LabelId = label_list[conf_idx]
+                    Confidence = conf_list[conf_idx]
+                    idmap1d = np.reshape(InstanceMap > 0, (-1))
+                    PixelCount = np.sum(idmap1d)
+                    EncodedPixels = rle_encoding(InstanceMap)
 
+                    df.loc[df_count] = [imageID, LabelId, Confidence, PixelCount, EncodedPixels]
+                    df_count += 1
+
+    df.to_csv(args.csv_file, header=True, index=False)
+    print('Finish converting file: %s with %d deleting overlaps' % (args.csv_file, del_count))
+    return
+
+
+def convertImages_with_postprocessing_image(filename, list_index,  predictionList, args, mapping_dict):
+
+    df = pd.DataFrame(columns=['ImageId', 'LabelId', 'Confidence', 'PixelCount', 'EncodedPixels'])
+    df_count = 0
+    del_count = 0
+    imageID = mapping_dict[filename]
+    if os.path.exists(predictionList[list_index]):
+        predicitionFile = open(predictionList[list_index], "r")
+        predictionlines = predicitionFile.readlines()
+        # We keep a mask for the whole image, and fill it with masks. The maskes are filled
+        # with descending order and if there is an overlap, we discard such instance.
+        img_mask_list = []
+        img_mask_valid = []
+        conf_list = []
+        label_list = []
+        for predictionline in predictionlines:
+            predictionInfo = predictionline.split(' ')
+            img_mask_list.append(predictionInfo[0])
+            label_list.append(int(predictionInfo[1]))
+            conf_list.append(float(predictionInfo[2].split('\n')[0]))
+
+        conf_order = np.argsort(-np.array(conf_list))
+        image_mask_all = np.zeros(shape=(2710, 3384))
+        for conf_idx in conf_order:
+            # skip flag indicates whether we will skip this instance
+            skip_flag = False
+            img = Image.open(img_mask_list[conf_idx])
+            InstanceMap = np.array(img)
+            image_mask_all += InstanceMap > 0
+            if len(np.unique(image_mask_all)) > 2:
+                # we will check whether we will keep this instance by looping over all previous instances:
+                for im_mask in img_mask_valid:
+                    rle1 = maskUtils.encode(np.array(im_mask[:, :, np.newaxis], order='F'))[0]
+                    rle2 = maskUtils.encode(np.array(InstanceMap[:, :, np.newaxis], order='F'))[0]
+                    iou = maskUtils.iou([rle1], [rle2], [0])
+                    if iou[0][0] > args.del_overlap:
+                        image_mask_all -= InstanceMap
+                        del_count += 1
+                        skip_flag = True
+                        continue
+            if not skip_flag:
                 img_mask_valid.append(InstanceMap)
                 LabelId = label_list[conf_idx]
                 Confidence = conf_list[conf_idx]
@@ -138,9 +199,8 @@ def convertImages_with_postprocessing(predictionList, groundTruthList, args, map
                 df.loc[df_count] = [imageID, LabelId, Confidence, PixelCount, EncodedPixels]
                 df_count += 1
 
-    df.to_csv(args.csv_file, header=True, index=False)
-    print('Finish converting file: %s with %d deleting overlaps' % (args.csv_file, del_count))
-    return
+    df.to_csv(args.csv_file_image, header=True, index=False)
+    print('Finish converting file: %s with %d deleting overlaps' % (args.csv_file_image, del_count))
 
 
 def convertImages_fast_old(predictionList, groundTruthList, args, mapping_dict):
