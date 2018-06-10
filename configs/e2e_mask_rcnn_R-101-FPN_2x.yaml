@@ -50,7 +50,7 @@ TEST:
     SCORE_HEUR: UNION
     COORD_HEUR: UNION
     H_FLIP: True
-    SCALES: (1200, 1500, 1800, 2100, 2400) # we don't need 2710 because the first SCALE include it!
+    SCALES: (1200, 1500, 1800, 2100, 2400) # we don't need 3384 because the first SCALE include it!
     MAX_SIZE: 3384
     SCALE_H_FLIP: True
     SCALE_SIZE_DEP: False
@@ -60,8 +60,8 @@ TEST:
     ENABLED: True
     HEUR: SOFT_AVG
     H_FLIP: True
-    SCALES: (1200, 1500, 1800, 2100, 2400) # we don't need 2710 because the first SCALE include it!
-    MAX_SIZE: 2000
+    SCALES: (1200, 1500, 1800, 2100, 2400) # we don't need 3384 because the first SCALE include it!
+    MAX_SIZE: 3384
     SCALE_H_FLIP: True
     SCALE_SIZE_DEP: False
     ASPECT_RATIOS: ()

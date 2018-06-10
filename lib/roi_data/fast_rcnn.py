@@ -141,8 +141,7 @@ def _sample_rois(roidb, im_scale, batch_idx):
     fg_rois_per_this_image = np.minimum(fg_rois_per_image, fg_inds.size)
     # Sample foreground regions without replacement
     if fg_inds.size > 0:
-        fg_inds = npr.choice(
-            fg_inds, size=fg_rois_per_this_image, replace=False)
+        fg_inds = npr.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
 
     # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
     bg_inds = np.where((max_overlaps < cfg.TRAIN.BG_THRESH_HI) &
@@ -170,11 +169,9 @@ def _sample_rois(roidb, im_scale, batch_idx):
         bbox_targets = _compute_targets(sampled_boxes, gt_boxes[gt_assignments, :], sampled_labels)
         bbox_targets, bbox_inside_weights = _expand_bbox_targets(bbox_targets)
     else:
-        bbox_targets, bbox_inside_weights = _expand_bbox_targets(
-            roidb['bbox_targets'][keep_inds, :])
+        bbox_targets, bbox_inside_weights = _expand_bbox_targets(roidb['bbox_targets'][keep_inds, :])
 
-    bbox_outside_weights = np.array(
-        bbox_inside_weights > 0, dtype=bbox_inside_weights.dtype)
+    bbox_outside_weights = np.array(bbox_inside_weights > 0, dtype=bbox_inside_weights.dtype)
 
     # Scale rois and format as (batch_idx, x1, y1, x2, y2)
     sampled_rois = sampled_boxes * im_scale
@@ -209,8 +206,7 @@ def _compute_targets(ex_rois, gt_rois, labels):
     assert ex_rois.shape[1] == 4
     assert gt_rois.shape[1] == 4
 
-    targets = box_utils.bbox_transform_inv(ex_rois, gt_rois,
-                                           cfg.MODEL.BBOX_REG_WEIGHTS)
+    targets = box_utils.bbox_transform_inv(ex_rois, gt_rois,cfg.MODEL.BBOX_REG_WEIGHTS)
     # Use class "1" for all fg boxes if using class_agnostic_bbox_reg
     if cfg.MODEL.CLS_AGNOSTIC_BBOX_REG:
         labels.clip(max=1, out=labels)

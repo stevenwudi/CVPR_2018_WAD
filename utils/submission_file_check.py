@@ -52,6 +52,10 @@ def submission_sanity_check(sub, test_img_dir):
             print("Wrong RLE ending: ")
             print(sub.loc[i])
             continue
+        if rle[0] == '|':
+            print("Wrong RLE ending")
+            print(sub.loc[i])
+            continue
         if rle[-1] != '|':
             print("Wrong RLE ending")
             print(sub.loc[i])

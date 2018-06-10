@@ -119,12 +119,13 @@ def process_in_parallel_wad(args, total_range_size, binary):
     """
     # Snapshot the current cfg state in order to pass to the inference
     # subprocesses
+
+    cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES')
     subprocess_env = os.environ.copy()
     processes = []
     NUM_GPUS = torch.cuda.device_count()
     subinds = np.array_split(range(total_range_size), NUM_GPUS)
     # Determine GPUs to use
-    cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES')
     # cuda_visible_devices = list(range(NUM_GPUS))
 
     if cuda_visible_devices:
@@ -146,9 +147,7 @@ def process_in_parallel_wad(args, total_range_size, binary):
             start=int(start),
             end=int(end))
         logger.info('Range command {}: {}'.format(i, cmd))
-        filename = os.path.join(
-            output_dir, 'Range_%s_%s.stdout' % (start, end)
-        )
+        filename = os.path.join(output_dir, 'Range_%s_%s.stdout' % (start, end))
         subprocess_stdout = open(filename, 'w')
         p = subprocess.Popen(
             cmd,
@@ -162,26 +161,30 @@ def process_in_parallel_wad(args, total_range_size, binary):
     # Log output from inference processes and collate their results
     outputs = []
     for i, p, start, end, subprocess_stdout in processes:
+        log_subprocess_output_wad(i, p, output_dir, start, end)
         if isinstance(subprocess_stdout, IOBase):
             subprocess_stdout.close()
+        range_file = os.path.join(output_dir, 'range_%s_%s.pkl' % (start, end))
+        range_data = pickle.load(open(range_file, 'rb'))
+        outputs.append(range_data)
     return outputs
 
 
-def log_subprocess_output_wad(i, p, output_dir, tag, start, end):
+def log_subprocess_output_wad(i, p, output_dir, start, end):
     """Capture the output of each subprocess and log it in the parent process.
     The first subprocess's output is logged in realtime. The output from the
     other subprocesses is buffered and then printed all at once (in order) when
     subprocesses finish.
     """
-    outfile = os.path.join(output_dir, '%s_range_%s_%s.stdout' % (tag, start, end))
+    outfile = os.path.join(output_dir, 'Range_%s_%s.stdout' % (start, end))
     logger.info('# ' + '-' * 76 + ' #')
-    logger.info(
-        'stdout of subprocess %s with range [%s, %s]' % (i, start + 1, end)
-    )
+    logger.info('stdout of subprocess %s with range [%s, %s]' % (i, start + 1, end))
     logger.info('# ' + '-' * 76 + ' #')
+
     ret = p.wait()
     with open(outfile, 'r') as f:
         print(''.join(f.readlines()))
+
     assert ret == 0, 'Range subprocess failed (exit code: {})'.format(ret)
 
 

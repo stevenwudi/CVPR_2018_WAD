@@ -29,8 +29,9 @@ def main():
 
     sub_csv = pd.concat(frames, axis=0)
     sub_csv = sub_csv.dropna()
-    #confs = [0.1, 0.2, 0.3, 0.4, 0.5]
-    confs = [0.1]
+    # sub_csv.Confidence = 1      # THIS LINE NEEDS TO BE DELETED!
+    confs = [0.1, 0.2, 0.3, 0.4, 0.5]
+    #confs = [0.4]
     for i in tqdm(range(len(confs))):
         conf = confs[i]
         sub_csv = sub_csv.reset_index(drop=True)
@@ -53,9 +54,11 @@ def main():
         print('Total instance number for conf %.1f is %d' % (conf, len(sub_csv_new)))
 
         if args.del_overlap:
-            sub_csv_new.to_csv(os.path.join(args.result_dir, 'combined_%.2f_del_overlap.csv' % conf), header=True, index=False)
+            csv_file_name = os.path.join(args.result_dir, 'combined_%.2f_del_overlap.csv' % conf)
         else:
-            sub_csv_new.to_csv(os.path.join(args.result_dir, 'combined_%.2f.csv' % conf), header=True, index=False)
+            csv_file_name = os.path.join(args.result_dir, 'combined_%.2f.csv' % conf)
+        sub_csv_new.to_csv(csv_file_name, header=True, index=False)
+        print("Finish saving file t: %s" % csv_file_name)
 
 
 if __name__ == '__main__':

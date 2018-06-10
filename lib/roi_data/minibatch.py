@@ -55,8 +55,7 @@ def _get_image_blob(roidb):
     im_scales = []
     for i in range(num_images):
         im = cv2.imread(roidb[i]['image'])
-        assert im is not None, \
-            'Failed to read image \'{}\''.format(roidb[i]['image'])
+        assert im is not None, 'Failed to read image \'{}\''.format(roidb[i]['image'])
         # If NOT using opencv to read in images, uncomment following lines
         # if len(im.shape) == 2:
         #     im = im[:, :, np.newaxis]
@@ -67,8 +66,7 @@ def _get_image_blob(roidb):
         if roidb[i]['flipped']:
             im = im[:, ::-1, :]
         target_size = cfg.TRAIN.SCALES[scale_inds[i]]
-        im, im_scale = blob_utils.prep_im_for_blob(
-            im, cfg.PIXEL_MEANS, [target_size], cfg.TRAIN.MAX_SIZE)
+        im, im_scale = blob_utils.prep_im_for_blob(im, cfg.PIXEL_MEANS, [target_size], cfg.TRAIN.MAX_SIZE)
         im_scales.append(im_scale[0])
         processed_ims.append(im[0])
 

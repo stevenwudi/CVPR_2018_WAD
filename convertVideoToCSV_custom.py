@@ -15,14 +15,14 @@ from pycocotools import mask as maskUtils
 def parse_args():
     """Parse in command line arguments"""
     parser = argparse.ArgumentParser(description='Customized mapping')
-    parser.add_argument('--result_dir', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/Images_0')
+    parser.add_argument('--result_dir', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/Images_0_NMS_0.50_TEST_AUG_cls_boxes_confident_threshold_0.1')
     #parser.add_argument('--result_dir', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/Images_0_NMS_0.50_cls_boxes_confident_threshold_0.1')
     parser.add_argument('--mapping_dir', default="/media/samsumg_1tb/CVPR2018_WAD/list_test_mapping", help='md5 test image mapping dir')
     parser.add_argument('--test_video_list_dir', default='/media/samsumg_1tb/CVPR2018_WAD/list_test')
     parser.add_argument('--test_img_dir', default='/media/samsumg_1tb/CVPR2018_WAD/test')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD')
-    parser.add_argument('--del_overlap', default=0.1, help='None or a float number')
-    parser.add_argument('--num_threads', default=15, help='multiprocessing thread')
+    parser.add_argument('--del_overlap', default=None, help='None or a float number')
+    parser.add_argument('--num_threads', default=5, help='multiprocessing thread')
 
     args = parser.parse_args()
     return args
@@ -212,15 +212,14 @@ def convertImages_with_image(filename, list_index,  predictionList, args, mappin
         predicitionFile = open(predictionList[list_index], "r")
         predictionlines = predicitionFile.readlines()
         for predictionline in predictionlines:
+            predictionInfo = predictionline.split(' ')
             LabelId = int(predictionInfo[1])
             Confidence = float(predictionInfo[2].split('\n')[0])
-
-            predictionInfo = predictionline.split(' ')
             img = Image.open(predictionInfo[0])
             InstanceMap = np.array(img)
             idmap1d = np.reshape(InstanceMap > 0, (-1))
             PixelCount = np.sum(idmap1d)
-            EncodedPixels = rle_encoding(InstanceMap)
+            EncodedPixels = rle_encoding(idmap1d)
 
             df.loc[df_count] = [imageID, LabelId, Confidence, PixelCount, EncodedPixels]
             df_count += 1

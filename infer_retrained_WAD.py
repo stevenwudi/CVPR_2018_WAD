@@ -37,13 +37,13 @@ cv2.ocl.setUseOpenCL(False)
 def parse_args():
     """Parse in command line arguments"""
     parser = argparse.ArgumentParser(description='Demonstrate mask-rcnn results')
-    parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
-    parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='path of checkpoint to load')
+    parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_X-101-32x8d-FPN_1x.yaml', help='Config file for training (and optionally testing)')
+    parser.add_argument('--load_ckpt', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_X-101-32x8d-FPN_1x/Jun10-13-14-17_n606_step/ckpt/model_step99.pth', help='path of checkpoint to load')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD', help='directory to load images for demo')
-    parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.5, help='threshold for detection boundingbox')
+    parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.1, help='threshold for detection boundingbox')
     parser.add_argument('--nms_soft', default=False, help='Using Soft NMS')
     parser.add_argument('--nms', default=0.5, help='default value for NMS')
-    parser.add_argument('--vis', default=False)
+    parser.add_argument('--vis', default=True)
     args = parser.parse_args()
 
     return args
@@ -117,9 +117,9 @@ def test_net_on_dataset(args):
         os.makedirs(output_list_dir)
 
     # A break point
-    # img_produced = os.listdir(output_vis_dir)
-    #imglist = [x for x in imglist_all if x.split('/')[-1] not in img_produced]
-    imglist = imglist_all
+    img_produced = os.listdir(output_list_dir)
+    imglist = [x for x in imglist_all if x.split('/')[-1][:-4]+'.txt' not in img_produced]
+    #imglist = imglist_all
     num_images = len(imglist)
 
     for i in tqdm(xrange(num_images)):
@@ -141,7 +141,7 @@ def test_net_on_dataset(args):
                 None,
                 dataset=dataset,
                 box_alpha=0.3,
-                show_class=False,
+                show_class=True,
                 thresh=0.5,
                 kp_thresh=2
             )

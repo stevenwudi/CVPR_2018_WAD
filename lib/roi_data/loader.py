@@ -1,16 +1,18 @@
 import math
+
 import numpy as np
 import numpy.random as npr
-
-import torch
 import torch.utils.data as data
 import torch.utils.data.sampler as torch_sampler
-from torch.utils.data.dataloader import default_collate
+from pycocotools import mask as COCOmask
 from torch._six import int_classes as _int_classes
+from torch.utils.data.dataloader import default_collate
 
+import utils.blob as blob_utils
 from core.config import cfg
 from roi_data.minibatch import get_minibatch
-import utils.blob as blob_utils
+
+
 # from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes
 
 
@@ -25,7 +27,7 @@ class RoiDataLoader(data.Dataset):
         index, ratio = index_tuple
         single_db = [self._roidb[index]]
         blobs, valid = get_minibatch(single_db)
-        #TODO: Check if minibatch is valid ? If not, abandon it.
+        # TODO: Check if minibatch is valid ? If not, abandon it.
         # Need to change _worker_loop in torch.utils.data.dataloader.py.
 
         # Squeeze batch dim
@@ -47,9 +49,30 @@ class RoiDataLoader(data.Dataset):
                         entry[key] = entry[key][valid_inds]
                 entry['segms'] = [entry['segms'][ind] for ind in valid_inds]
 
-        blobs['roidb'] = blob_utils.serialize(blobs['roidb'])  # CHECK: maybe we can serialize in collate_fn
+        if cfg.TRAIN.RANDOM_CROP > 0:
+            if 'segms_origin' not in blobs['roidb'][0].keys():
+                blobs['roidb'][0]['segms_origin'] = blobs['roidb'][0]['segms'].copy()
 
+            self.crop_data_train(blobs)
+            # Check bounding box, actually, it is not necessary...
+            # entry = blobs['roidb'][0]
+            # boxes = entry['boxes']
+            # invalid = (boxes[:, 0] < 0) | (boxes[:, 2] < 0)
+            # valid_inds = np.nonzero(~ invalid)[0]
+            # if len(valid_inds) < len(boxes):
+            #     for key in ['boxes', 'gt_classes', 'seg_areas', 'gt_overlaps', 'is_crowd']:
+            #         if key in entry:
+            #             entry[key] = entry[key][valid_inds]
+            #
+            #     entry['box_to_gt_ind_map'] = np.array(list(range(len(valid_inds)))).astype(int)
+            #     entry['segms'] = [entry['segms'][ind] for ind in valid_inds]
+
+        blobs['roidb'] = blob_utils.serialize(blobs['roidb'])  # CHECK: maybe we can serialize in collate_fn
         return blobs
+        # if len(valid_inds) > 3:
+        #     return blobs
+        # else:
+        #     return None
 
     def crop_data(self, blobs, ratio):
         data_height, data_width = map(int, blobs['im_info'][:2])
@@ -75,7 +98,7 @@ class RoiDataLoader(data.Dataset):
                     y_s = min_y if y_s_add == 0 else \
                         npr.choice(range(min_y, min_y + y_s_add + 1))
             # Crop the image
-            blobs['data'] = blobs['data'][:, y_s:(y_s + size_crop), :,]
+            blobs['data'] = blobs['data'][:, y_s:(y_s + size_crop), :, ]
             # Update im_info
             blobs['im_info'][0] = size_crop
             # Shift and clamp boxes ground truth
@@ -95,12 +118,10 @@ class RoiDataLoader(data.Dataset):
                 if (box_region - size_crop) < 0:
                     x_s_min = max(max_x - size_crop, 0)
                     x_s_max = min(min_x, data_width - size_crop)
-                    x_s = x_s_min if x_s_min == x_s_max else \
-                        npr.choice(range(x_s_min, x_s_max + 1))
+                    x_s = x_s_min if x_s_min == x_s_max else npr.choice(range(x_s_min, x_s_max + 1))
                 else:
                     x_s_add = (box_region - size_crop) // 2
-                    x_s = min_x if x_s_add == 0 else \
-                        npr.choice(range(min_x, min_x + x_s_add + 1))
+                    x_s = min_x if x_s_add == 0 else npr.choice(range(min_x, min_x + x_s_add + 1))
             # Crop the image
             blobs['data'] = blobs['data'][:, :, x_s:(x_s + size_crop)]
             # Update im_info
@@ -111,6 +132,53 @@ class RoiDataLoader(data.Dataset):
             np.clip(boxes[:, 0], 0, size_crop - 1, out=boxes[:, 0])
             np.clip(boxes[:, 2], 0, size_crop - 1, out=boxes[:, 2])
             blobs['roidb'][0]['boxes'] = boxes
+
+    def crop_data_train(self, blobs):
+        data_height, data_width = map(int, blobs['im_info'][:2])
+        boxes = blobs['roidb'][0]['boxes']
+        crop_ratio = blobs['im_info'][2]
+
+        min_x = math.floor(np.min(boxes[:, 0]) * crop_ratio)
+        max_x = math.floor(np.max(boxes[:, 2]) * crop_ratio)
+        min_y = math.floor(np.min(boxes[:, 1]) * crop_ratio)
+        max_y = math.floor(np.max(boxes[:, 3]) * crop_ratio)
+
+        x_s_max = max(max_x - cfg.TRAIN.RANDOM_CROP, 0)
+        x_s_min = min(min_x, data_width - cfg.TRAIN.RANDOM_CROP)
+        x_start = x_s_min if x_s_min >= x_s_max else npr.choice(range(x_s_min, x_s_max + 1))
+
+        y_s_max = max(max_y - cfg.TRAIN.RANDOM_CROP, 0)
+        y_s_min = min(min_y, data_height - cfg.TRAIN.RANDOM_CROP)
+        y_start = y_s_min if y_s_min >= y_s_max else npr.choice(range(y_s_min, y_s_max + 1))
+
+        # Crop the image
+        blobs['data'] = blobs['data'][:, y_start:(y_start + cfg.TRAIN.RANDOM_CROP),
+                        x_start:(x_start + cfg.TRAIN.RANDOM_CROP)]
+        # Update im_info
+        blobs['im_info'][:2] = cfg.TRAIN.RANDOM_CROP, cfg.TRAIN.RANDOM_CROP
+        # Shift and clamp boxes ground truth
+        boxes[:, 0] -= math.ceil(x_start / crop_ratio)
+        boxes[:, 2] -= math.ceil(x_start / crop_ratio)
+        boxes[:, 1] -= math.ceil(y_start / crop_ratio)
+        boxes[:, 3] -= math.ceil(y_start / crop_ratio)
+        blobs['roidb'][0]['boxes'] = boxes
+
+        # Unfortunately, we need to transform the semgs
+        h, w = blobs['roidb'][0]['segms_origin'][0]['size']
+        h_new, w_new = cfg.TRAIN.RANDOM_CROP / crop_ratio, cfg.TRAIN.RANDOM_CROP / crop_ratio
+
+        semgs_masks = np.zeros(shape=(len(blobs['roidb'][0]['segms_origin']), h, w))
+        for i in range(len(blobs['roidb'][0]['segms_origin'])):
+            semgs_masks[i, :, :] = COCOmask.decode(blobs['roidb'][0]['segms_origin'][i])
+
+        semgs_masks_new = semgs_masks[:, math.ceil(y_start / crop_ratio): (math.ceil(y_start / crop_ratio + h_new)),
+                          math.ceil(x_start / crop_ratio): (math.ceil(x_start / crop_ratio + h_new))]
+
+        blobs['roidb'][0]['segms'] = []
+        for i in range(semgs_masks_new.shape[0]):
+            mask = np.array(semgs_masks_new[i], order='F', dtype=np.uint8)
+            rle = COCOmask.encode(mask)
+            blobs['roidb'][0]['segms'].append(rle)
 
     def __len__(self):
         return self.DATA_SIZE
@@ -128,7 +196,7 @@ def cal_minibatch_ratio(ratio_list):
     num_minibatch = int(np.ceil(DATA_SIZE / cfg.TRAIN.IMS_PER_BATCH))  # Include leftovers
     for i in range(num_minibatch):
         left_idx = i * cfg.TRAIN.IMS_PER_BATCH
-        right_idx = min((i+1) * cfg.TRAIN.IMS_PER_BATCH - 1, DATA_SIZE - 1)
+        right_idx = min((i + 1) * cfg.TRAIN.IMS_PER_BATCH - 1, DATA_SIZE - 1)
 
         if ratio_list[right_idx] < 1:
             # for ratio < 1, we preserve the leftmost in each batch.
@@ -140,7 +208,7 @@ def cal_minibatch_ratio(ratio_list):
             # for ratio cross 1, we make it to be 1.
             target_ratio = 1
 
-        ratio_list_minibatch[left_idx:(right_idx+1)] = target_ratio
+        ratio_list_minibatch[left_idx:(right_idx + 1)] = target_ratio
     return ratio_list_minibatch
 
 
@@ -199,7 +267,7 @@ class BatchSampler(torch_sampler.BatchSampler):
                              "torch.utils.data.Sampler, but got sampler={}"
                              .format(sampler))
         if not isinstance(batch_size, _int_classes) or isinstance(batch_size, bool) or \
-                batch_size <= 0:
+                        batch_size <= 0:
             raise ValueError("batch_size should be a positive integeral value, "
                              "but got batch_size={}".format(batch_size))
         if not isinstance(drop_last, bool):
@@ -226,12 +294,13 @@ class BatchSampler(torch_sampler.BatchSampler):
             return (len(self.sampler) + self.batch_size - 1) // self.batch_size
 
 
-
 def collate_minibatch(list_of_blobs):
     """Stack samples seperately and return a list of minibatches
     A batch contains NUM_GPUS minibatches and image size in different minibatch may be different.
     Hence, we need to stack smaples from each minibatch seperately.
     """
+    #list_of_blobs = filter(lambda x: x is not None, list_of_blobs)
+    #list_of_blobs = [x for x in list_of_blobs if x is not None]
     Batch = {key: [] for key in list_of_blobs[0]}
     # Because roidb consists of entries of variable length, it can't be batch into a tensor.
     # So we keep roidb in the type of "list of ndarray".
