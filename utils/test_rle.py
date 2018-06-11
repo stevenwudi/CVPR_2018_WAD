@@ -252,7 +252,7 @@ def box_results_with_nms_and_limit(scores, boxes):  # NOTE: support single-batch
     # Apply threshold on detection probabilities and apply NMS
     # Skip j = 0, because it's the background class
     for j in range(1, num_classes):
-        inds = np.where(scores[:, j] > cfg.TEST.SCORE_THRESH)[0]
+        inds = np.where(scores[:, j] >= cfg.TEST.SCORE_THRESH)[0]
         scores_j = scores[inds, j]
         boxes_j = boxes[inds, j * 4:(j + 1) * 4]
         dets_j = np.hstack((boxes_j, scores_j[:, np.newaxis])).astype(np.float32, copy=False)

@@ -15,14 +15,13 @@ from pycocotools import mask as maskUtils
 def parse_args():
     """Parse in command line arguments"""
     parser = argparse.ArgumentParser(description='Customized mapping')
-    parser.add_argument('--result_dir', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/Images_0_NMS_0.50_TEST_AUG_cls_boxes_confident_threshold_0.1')
-    #parser.add_argument('--result_dir', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/Images_0_NMS_0.50_cls_boxes_confident_threshold_0.1')
+    parser.add_argument('--result_dir', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/Jun11-16-19-08_n606_step/Images_0_NMS_0.50_TEST_AUG_cls_boxes_confident_threshold_0.1')
     parser.add_argument('--mapping_dir', default="/media/samsumg_1tb/CVPR2018_WAD/list_test_mapping", help='md5 test image mapping dir')
     parser.add_argument('--test_video_list_dir', default='/media/samsumg_1tb/CVPR2018_WAD/list_test')
     parser.add_argument('--test_img_dir', default='/media/samsumg_1tb/CVPR2018_WAD/test')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD')
     parser.add_argument('--del_overlap', default=None, help='None or a float number')
-    parser.add_argument('--num_threads', default=5, help='multiprocessing thread')
+    parser.add_argument('--num_threads', default=10, help='multiprocessing thread')
 
     args = parser.parse_args()
     return args
@@ -99,8 +98,7 @@ def convertImages_with_postprocessing(predictionList, groundTruthList, args, map
     for list_index, filename in enumerate(groundTruthList):
         imageID = mapping_dict[filename]
         if predictionList[list_index]:
-            predicitionFile = open(predictionList[list_index], "r")
-            predictionlines = predicitionFile.readlines()
+            predictionlines = [line.rstrip('\n') for line in open(predictionList[list_index])]
             # We keep a mask for the whole image, and fill it with masks. The maskes are filled
             # with descending order and if there is an overlap, we discard such instance.
             img_mask_list = []

@@ -50,7 +50,7 @@ def _get_image_blob(roidb):
     """
     num_images = len(roidb)
     # Sample random scales to use for each image in this batch
-    scale_inds = np.random.randint(0, high=len(cfg.TRAIN.SCALES), size=num_images)
+    target_size = np.random.randint(low=cfg.TRAIN.SCALES[0], high=cfg.TRAIN.SCALES[1], size=num_images)
     processed_ims = []
     im_scales = []
     for i in range(num_images):
@@ -65,7 +65,7 @@ def _get_image_blob(roidb):
         # im = im[:, :, ::-1]
         if roidb[i]['flipped']:
             im = im[:, ::-1, :]
-        target_size = cfg.TRAIN.SCALES[scale_inds[i]]
+        #target_size = cfg.TRAIN.SCALES[scale_inds[i]]
         im, im_scale = blob_utils.prep_im_for_blob(im, cfg.PIXEL_MEANS, [target_size], cfg.TRAIN.MAX_SIZE)
         im_scales.append(im_scale[0])
         processed_ims.append(im[0])

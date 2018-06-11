@@ -12,7 +12,7 @@ import matplotlib
 from six.moves import xrange
 from tqdm import tqdm
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+#os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 import _init_paths  # pylint: disable=unused-import
 
 #matplotlib.use('TkAgg')
@@ -37,13 +37,14 @@ cv2.ocl.setUseOpenCL(False)
 def parse_args():
     """Parse in command line arguments"""
     parser = argparse.ArgumentParser(description='Demonstrate mask-rcnn results')
-    parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_X-101-32x8d-FPN_1x.yaml', help='Config file for training (and optionally testing)')
-    parser.add_argument('--load_ckpt', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_X-101-32x8d-FPN_1x/Jun09-20-05-27_n606_step/ckpt/model_step10650.pth', help='path of checkpoint to load')
+    parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
+    parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/Jun11-16-19-08_n606_step/ckpt/model_step8599.pth', help='checkpoint path to load')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD', help='directory to load images for demo')
     parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.1, help='threshold for detection boundingbox')
     parser.add_argument('--nms_soft', default=False, help='Using Soft NMS')
     parser.add_argument('--nms', default=0.5, help='default value for NMS')
-    parser.add_argument('--vis', default=True)
+    parser.add_argument('--vis', default=False)
+    parser.add_argument('--range', default=None, help='start (inclusive) and end (exclusive) indices', type=int, nargs=2)
     args = parser.parse_args()
 
     return args
@@ -117,12 +118,22 @@ def test_net_on_dataset(args):
         os.makedirs(output_list_dir)
 
     # A break point
-    img_produced = os.listdir(output_list_dir)
-    imglist = [x for x in imglist_all if x.split('/')[-1][:-4]+'.txt' not in img_produced]
-    #imglist = imglist_all
-    num_images = len(imglist)
+    # img_produced = os.listdir(output_list_dir)
+    # imglist = [x for x in imglist_all if x.split('/')[-1][:-4]+'.txt' not in img_produced]
+    imglist = imglist_all
+    if False:
+        args.vis = True
+        imglist = [os.path.join(args.dataset_dir, 'test', '4f38c1d630209cfb777a3dcbb613ba56.jpg'),
+                   os.path.join(args.dataset_dir, 'test', '3b08ff3b969200982d0283aedbcaae20.jpg')]
 
-    for i in tqdm(xrange(num_images)):
+    if not args.range:
+        start = 0
+        end = len(imglist)
+    else:
+        start = args.range[0]
+        end = args.range[1]
+
+    for i in tqdm(xrange(start, end)):
         im = cv2.imread(imglist[i])
         assert im is not None
         timers = defaultdict(Timer)

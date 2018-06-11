@@ -28,29 +28,14 @@ from datasets.dataloader_wad_cvpr2018 import WAD_CVPR2018
 import utils.misc as misc_utils
 import utils.net as net_utils
 import utils.vis as vis_utils
-from infer_retrained_WAD import test_net_on_dataset
+from infer_retrained_WAD import parse_args
+
 from utils.timer import Timer
 import utils.env as envu
 import utils.subprocess as subprocess_utils
 # OpenCL may be enabled by default in OpenCV3; disable it because it's not
 # thread safe and causes unwanted GPU memory allocations.
 cv2.ocl.setUseOpenCL(False)
-
-
-def parse_args():
-    """Parse in command line arguments"""
-    parser = argparse.ArgumentParser(description='Demonstrate mask-rcnn results')
-    parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_R-101-FPN_2x.yaml', help='Config file for training (and optionally testing)')
-    parser.add_argument('--load_ckpt', default='./Outputs/e2e_mask_rcnn_R-101-FPN_2x/May30-12-10-19_n606_step/ckpt/model_step39999.pth', help='path of checkpoint to load')
-    parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD', help='directory to load images for demo')
-    parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.1, help='threshold for detection boundingbox')
-    parser.add_argument('--vis', default=False)
-    parser.add_argument('--range', default=None, help='start (inclusive) and end (exclusive) indices', type=int, nargs=2)
-    parser.add_argument('--nms_soft', default=False, help='Using Soft NMS')
-    parser.add_argument('--nms', default=0.5, help='default value for NMS')
-    args = parser.parse_args()
-
-    return args
 
 
 def main():
@@ -63,11 +48,9 @@ def main():
         cfg.TEST.NMS = args.nms
 
     if args.nms_soft:
-        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]),
-                                  'Images_' + str(cfg.TEST.SCALE) + '_SOFT_NMS')
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]),'Images_' + str(cfg.TEST.SCALE) + '_SOFT_NMS')
     elif args.nms:
-        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]),
-                                  'Images_' + str(cfg.TEST.SCALE) + '_NMS_%.2f' % args.nms)
+        output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]),'Images_' + str(cfg.TEST.SCALE) + '_NMS_%.2f' % args.nms)
     else:
         output_dir = os.path.join(('/').join(args.load_ckpt.split('/')[:-2]), 'Images_' + str(cfg.TEST.SCALE))
 
