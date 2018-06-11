@@ -38,7 +38,7 @@ def parse_args():
     """Parse in command line arguments"""
     parser = argparse.ArgumentParser(description='Demonstrate mask-rcnn results')
     parser.add_argument('--cfg', dest='cfg_file', default='./configs/e2e_mask_rcnn_X-101-32x8d-FPN_1x.yaml', help='Config file for training (and optionally testing)')
-    parser.add_argument('--load_ckpt', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_X-101-32x8d-FPN_1x/Jun10-13-14-17_n606_step/ckpt/model_step99.pth', help='path of checkpoint to load')
+    parser.add_argument('--load_ckpt', default='/home/stevenwudi/PycharmProjects/CVPR_2018_WAD/Outputs/e2e_mask_rcnn_X-101-32x8d-FPN_1x/Jun09-20-05-27_n606_step/ckpt/model_step10650.pth', help='path of checkpoint to load')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD', help='directory to load images for demo')
     parser.add_argument('--cls_boxes_confident_threshold', type=float, default=0.1, help='threshold for detection boundingbox')
     parser.add_argument('--nms_soft', default=False, help='Using Soft NMS')

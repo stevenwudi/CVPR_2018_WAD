@@ -44,6 +44,8 @@ __C.TRAIN.DATASETS = ()
 # each training image (i.e., scale jitter data augmentation)
 __C.TRAIN.SCALES = (600, )
 
+# Finetune weight, it's dependant upon the test result ( or the instance count.... it's a bit hack)
+__C.TRAIN.CE_FINETUNE_WIGHT = (1, 1.20,  6.4,  14.35, 1., 2.48,  1.534,  4.088)
 # Max pixel size of the longest side of a scaled input image
 __C.TRAIN.MAX_SIZE = 1000
 

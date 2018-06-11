@@ -78,6 +78,7 @@ class WAD_CVPR2018:
         # self.eval_class = [self.category_to_id_map[x] for x in self.eval_cat]
         # Due to previous training, we need to set the order as follows
         self.eval_class = [39, 40, 34, 33, 38, 36, 35]
+        self.eval_cat_count = [30522, 10687, 15047, 394902, 21062, 124199, 17531]
         self.json_category_id_to_contiguous_id = {
             v: i + 1
             for i, v in enumerate(self.eval_class)

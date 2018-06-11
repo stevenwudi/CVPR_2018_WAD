@@ -7,6 +7,7 @@ from torch.autograd import Variable
 from core.config import cfg
 import nn as mynn
 import utils.net as net_utils
+import numpy as np
 
 
 class fast_rcnn_outputs(nn.Module):
@@ -51,7 +52,11 @@ def fast_rcnn_losses(cls_score, bbox_pred, label_int32, bbox_targets,
                      bbox_inside_weights, bbox_outside_weights):
     device_id = cls_score.get_device()
     rois_label = Variable(torch.from_numpy(label_int32.astype('int64'))).cuda(device_id)
-    loss_cls = F.cross_entropy(cls_score, rois_label)
+    if len(cfg.TRAIN.CE_FINETUNE_WIGHT):
+        ce_weight = Variable(torch.from_numpy(np.array(cfg.TRAIN.CE_FINETUNE_WIGHT)).float()).cuda(device_id)
+        loss_cls = F.cross_entropy(cls_score, rois_label, ce_weight)
+    else:
+        loss_cls = F.cross_entropy(cls_score, rois_label)
 
     bbox_targets = Variable(torch.from_numpy(bbox_targets)).cuda(device_id)
     bbox_inside_weights = Variable(torch.from_numpy(bbox_inside_weights)).cuda(device_id)
