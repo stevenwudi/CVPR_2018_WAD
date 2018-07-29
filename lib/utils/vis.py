@@ -24,17 +24,16 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
-
-import cv2
 # Use a non-interactive backend
-import matplotlib
+import cv2
+
 import numpy as np
 import pycocotools.mask as mask_util
 
 import utils.keypoints as keypoint_utils
 from utils.colormap import colormap
 
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 

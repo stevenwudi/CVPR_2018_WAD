@@ -49,8 +49,7 @@ def main():
 
         for list_index, filename in enumerate(groundTruthImgList):
             args.csv_file_image = os.path.join(args.submission_path,  videoname + '_FRAME_%d' % list_index + '_' + filename.split('/')[-1][:-4] + '.csv')
-            #if not os.path.exists(args.csv_file_image):
-            if True:
+            if not os.path.exists(args.csv_file_image):
                 if args.del_overlap:
                     p = multiprocessing.Process(target=convertImages_with_postprocessing_image,
                                                 args=(filename, list_index, predictionImgList, args, mapping_dict))

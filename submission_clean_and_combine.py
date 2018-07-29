@@ -30,8 +30,8 @@ def main():
     sub_csv = pd.concat(frames, axis=0)
     sub_csv = sub_csv.dropna()
     # sub_csv.Confidence = 1      # THIS LINE NEEDS TO BE DELETED!
-    confs = [0.1, 0.2, 0.3, 0.4, 0.5]
-    #confs = [0.4]
+    #confs = [0.1, 0.2, 0.3, 0.4, 0.5]
+    confs = [0.6, 0.7, 0.8, 0.9]
     for i in tqdm(range(len(confs))):
         conf = confs[i]
         sub_csv = sub_csv.reset_index(drop=True)

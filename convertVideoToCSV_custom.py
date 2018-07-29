@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument('--test_video_list_dir', default='/media/samsumg_1tb/CVPR2018_WAD/list_test')
     parser.add_argument('--test_img_dir', default='/media/samsumg_1tb/CVPR2018_WAD/test')
     parser.add_argument('--dataset_dir', default='/media/samsumg_1tb/CVPR2018_WAD')
-    parser.add_argument('--del_overlap', default=None, help='None or a float number')
+    parser.add_argument('--del_overlap', default=0.1, help='None or a float number')
     parser.add_argument('--num_threads', default=10, help='multiprocessing thread')
 
     args = parser.parse_args()

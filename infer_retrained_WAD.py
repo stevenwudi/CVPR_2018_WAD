@@ -122,6 +122,7 @@ def test_net_on_dataset(args):
     # imglist = [x for x in imglist_all if x.split('/')[-1][:-4]+'.txt' not in img_produced]
     imglist = imglist_all
     if False:
+        imglist = ['/home/stevenwudi/PycharmProjects/Udacity/CarND-Vehicle-Detection/test_images/test5.jpg']
         args.vis = True
         imglist = [os.path.join(args.dataset_dir, 'test', '4f38c1d630209cfb777a3dcbb613ba56.jpg'),
                    os.path.join(args.dataset_dir, 'test', '3b08ff3b969200982d0283aedbcaae20.jpg')]
